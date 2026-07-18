@@ -894,7 +894,7 @@ export default function DashboardScreen({ session, onNavigate, onSelectUnit, onU
               // Extract vocabulary
               const vocabProg = student.vocabularyProgress || {};
               const masteredCount = Object.values(vocabProg).filter((p: any) => p.status === 'mastered').length;
-              const learningCount = Object.values(vocabProg).filter((p: any) => p.status === 'learning').length;
+              const learningCount = Object.values(vocabProg).filter((p: any) => p.status === 'learning' && !p.isDifficult).length;
               const difficultCount = Object.values(vocabProg).filter((p: any) => p.isDifficult).length;
 
               // Extract tests and speaking
