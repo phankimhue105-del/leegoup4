@@ -802,7 +802,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     let usedAIEval = false;
 
     try {
-      const response = await fetch("/api/evaluate-speaking-test", {
+      const response = await fetch("/api/evaluate-speech", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
