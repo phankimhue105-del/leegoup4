@@ -150,7 +150,7 @@ export const saveAppsScriptURL = (url: string) => {
 };
 
 export const loadUserSession = (): UserSession | null => {
-  const session = localStorage.getItem(USER_SESSION_KEY);
+  const session = sessionStorage.getItem(USER_SESSION_KEY);
   if (!session) return null;
   try {
     return JSON.parse(session);
@@ -160,7 +160,7 @@ export const loadUserSession = (): UserSession | null => {
 };
 
 export const saveUserSession = (session: UserSession) => {
-  localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
+  sessionStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
   
   // Also synchronize back into the local users DB to maintain offline persistence parity
   const users = getUsersDB();
@@ -188,7 +188,7 @@ export const saveUserSession = (session: UserSession) => {
 };
 
 export const clearUserSession = () => {
-  localStorage.removeItem(USER_SESSION_KEY);
+  sessionStorage.removeItem(USER_SESSION_KEY);
 };
 
 // API Client layer supporting both Local CRUD Cache & Google Sheets remote syncing
