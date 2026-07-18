@@ -146,9 +146,9 @@ export const unitTestsData: Record<string, TestQuestion[]> = {
       type: 'write_arrange',
       question: 'Arrange the words to make a correct sentence:',
       prompt: 'Sắp xếp các từ thành câu đúng cấu trúc Everybody Up 4:',
-      options: ['likes', 'hiking', 'He', 'climbing', 'and', '.'],
-      correctAnswer: 'He likes hiking and climbing .',
-      explanation: 'Sắp xếp chuẩn theo chủ ngữ số ít "He" + "likes" + hai hành động sở thích nối bằng "and".'
+      options: ['likes', 'climbing', 'He', 'high', 'trees', '.'],
+      correctAnswer: 'He likes climbing high trees .',
+      explanation: 'Sắp xếp chuẩn theo chủ ngữ số ít "He" + "likes" + V-ing "climbing" + cụm danh từ "high trees".'
     },
     {
       id: 'u1-q13',
@@ -473,10 +473,10 @@ export const unitTestsData: Record<string, TestQuestion[]> = {
       section: 'writing',
       type: 'write_arrange',
       question: 'Arrange the words to make a correct sentence:',
-      prompt: 'Sắp xếp các từ thành câu mô tả ngoại hình chuẩn tiếng Anh:',
-      options: ['She', 'has', 'straight', 'black', 'hair', 'and', 'brown', 'eyes', '.'],
-      correctAnswer: 'She has straight black hair and brown eyes .',
-      explanation: 'Sắp xếp trật tự từ mô tả: "She has straight black hair and brown eyes ."'
+      prompt: 'Sắp xếp các từ thành câu định vị ngoại hình chuẩn tiếng Anh:',
+      options: ['is', 'the', 'She', 'one', 'with', 'curly', 'red', 'hair', '.'],
+      correctAnswer: 'She is the one with curly red hair .',
+      explanation: 'Cấu trúc định vị người chuẩn của Everybody Up 4: "She is the one with curly red hair ."'
     },
     {
       id: 'u3-q13',
