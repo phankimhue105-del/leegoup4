@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 // Initialize SpeechSynthesis voices immediately on file load for iOS WebKit compatibility
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.getVoices();
@@ -41,7 +36,7 @@ export const playWordAudio = (text: string): Promise<void> => {
     audio.addEventListener('error', (e) => {
       if (!hasFailed) {
         hasFailed = true;
-        console.error(`[playWordAudio] Local MP3 not found or failed to load at ${localUrl}. Falling back to native SpeechSynthesis.`);
+        console.error(`[playWordAudio] Local MP3 not found or failed to load at ${localUrl}. Falling back to native SpeechSynthesis. Error details:`, audio.error || e);
         playTTSFallback(cleanedText, resolve);
       }
     });
@@ -56,7 +51,7 @@ export const playWordAudio = (text: string): Promise<void> => {
       .catch((err) => {
         if (!hasFailed) {
           hasFailed = true;
-          console.error(`[playWordAudio] Play promise rejected for ${localUrl}. Falling back to native SpeechSynthesis.`, err);
+          console.error(`[playWordAudio] Play promise rejected for ${localUrl}. Falling back to native SpeechSynthesis. Error details:`, err);
           playTTSFallback(cleanedText, resolve);
         }
       });
@@ -86,7 +81,10 @@ const playTTSFallback = (text: string, callback: () => void) => {
     }
 
     utterance.onend = () => callback();
-    utterance.onerror = () => callback();
+    utterance.onerror = (e) => {
+      console.error("[playWordAudio] SpeechSynthesis fallback utterance error:", e);
+      callback();
+    };
     window.speechSynthesis.speak(utterance);
   } catch (err) {
     console.error("SpeechSynthesis fallback failed:", err);
