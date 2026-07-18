@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { UserSession, Unit } from '../types';
+import { playWordAudio } from '../lib/audioHelper';
 import { 
   Mic, MicOff, Volume2, Sparkles, Trophy, Award, 
   ArrowLeft, CheckCircle, RefreshCw, Send, HelpCircle, 
@@ -531,13 +532,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
   const speakText = (text: string) => {
     if (isMuted) return;
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.8; // Friendly, slow for primary school kids
-      window.speechSynthesis.speak(utterance);
-    }
+    playWordAudio(text);
   };
 
   const startRecording = () => {
@@ -595,6 +590,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     let grammarScore = 85;
     let fluencyScore = 85;
     let usedAIEval = false;
+    let feedbackText = "";
 
     // Try real backend AI evaluation
     try {
@@ -615,6 +611,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
           pronunciationScore = data.pronunciationScore || 85;
           grammarScore = data.grammarScore || 85;
           fluencyScore = data.fluencyScore || 85;
+          feedbackText = data.feedback || "";
           usedAIEval = true;
         }
       }
@@ -664,6 +661,12 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       } else {
         fluencyScore = 70 + Math.floor(Math.random() * 15); // 70 - 84
       }
+
+      if (grammarScore >= 85) {
+        feedbackText = `Con trả lời rất tốt! Phát âm chuẩn (${pronunciationScore}%) và nói trôi chảy.`;
+      } else {
+        feedbackText = `Con đã cố gắng trả lời tốt. Hãy chú ý cấu trúc mẫu câu ngữ pháp một chút nhé!`;
+      }
     }
 
     const overallScore = Math.round((pronunciationScore + grammarScore + fluencyScore) / 3);
@@ -675,7 +678,25 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       fluency: [...prev.fluency, fluencyScore]
     }));
 
-    // Transition directly to the next question (evaluation happens at the end of all 10 questions)
+    // 1. Construct instant feedback text block
+    let feedbackReport = `⭐ Đánh giá câu trả lời:\n- Phát âm (Pronunciation): ${pronunciationScore}/100 🗣️\n- Ngữ pháp (Grammar): ${grammarScore}/100 📝\n- Trôi chảy (Fluency): ${fluencyScore}/100 ⚡\n\n🤖 Giáo viên AI nhận xét:\n"${feedbackText}"`;
+    
+    // Add grammar correction suggestion if score is low
+    if (grammarScore < 85) {
+      feedbackReport += `\n\n✍️ Gợi ý câu trả lời đúng cho con:\n👉 "${currentQ.suggestedAnswer}"`;
+    }
+
+    // 2. Append the feedback message to the chat log
+    const feedbackMsg: ChatMessage = {
+      id: `ai-fb-${currentQuestionIndex}`,
+      sender: 'ai',
+      text: feedbackReport,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatLog(prev => [...prev, feedbackMsg]);
+
+    // Transition directly to the next question
     setTimeout(() => {
       const nextIdx = currentQuestionIndex + 1;
       if (nextIdx < questions.length) {
@@ -685,7 +706,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         const nextQMsg: ChatMessage = {
           id: `ai-q-${nextIdx}`,
           sender: 'ai',
-          text: `Câu ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
+          text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         
@@ -696,10 +717,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         setIsProcessing(false);
         startTimeRef.current = Date.now();
       } else {
-        // Completed Speaking Test!
         finishSpeakingTest();
       }
-    }, 1000);
+    }, 4500);
   };
 
   const finishSpeakingTest = () => {
