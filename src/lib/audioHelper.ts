@@ -15,8 +15,9 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 /**
  * Universal speech player to fix iPhone (iOS Safari/Chrome) audio issues.
- * Uses Youdao DictVoice API which acts as a stable, high-quality, CORS-friendly MP3 source.
+ * Prioritizes local MP3 playback using HTMLAudioElement.
  * Falls back to Web Speech API (SpeechSynthesis) with forced English voice selection.
+ * Does not depend on third-party online pronunciation services.
  */
 export const playWordAudio = (text: string): Promise<void> => {
   return new Promise((resolve) => {
@@ -31,8 +32,8 @@ export const playWordAudio = (text: string): Promise<void> => {
       return;
     }
 
-    // 2. Play high-quality MP3 from Youdao DictVoice API (US Accent)
-    const audioUrl = `https://dict.youdao.com/dictvoice?type=2&audio=${encodeURIComponent(cleanedText)}`;
+    // 2. Derive local MP3 path
+    const localUrl = `/audio/${encodeURIComponent(cleanedText.toLowerCase().replace(/\s+/g, '_'))}.mp3`;
     const audio = new Audio();
     let hasFailed = false;
 
@@ -40,12 +41,12 @@ export const playWordAudio = (text: string): Promise<void> => {
     audio.addEventListener('error', (e) => {
       if (!hasFailed) {
         hasFailed = true;
-        console.error("Youdao MP3 playback failed on iOS, trying TTS fallback:", e);
+        console.error(`[playWordAudio] Local MP3 not found or failed to load at ${localUrl}. Falling back to native SpeechSynthesis.`);
         playTTSFallback(cleanedText, resolve);
       }
     });
 
-    audio.src = audioUrl;
+    audio.src = localUrl;
     audio.preload = 'auto';
 
     audio.play()
@@ -55,7 +56,7 @@ export const playWordAudio = (text: string): Promise<void> => {
       .catch((err) => {
         if (!hasFailed) {
           hasFailed = true;
-          console.error("Youdao MP3 play promise rejected, trying TTS fallback:", err);
+          console.error(`[playWordAudio] Play promise rejected for ${localUrl}. Falling back to native SpeechSynthesis.`, err);
           playTTSFallback(cleanedText, resolve);
         }
       });
@@ -72,11 +73,12 @@ const playTTSFallback = (text: string, callback: () => void) => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
-    utterance.rate = 0.82;
+    utterance.rate = 0.82; // Kid-friendly pace
 
     // iOS voice lookup: search specifically for an English voice
     const voices = window.speechSynthesis.getVoices();
-    const enVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+    const enVoice = voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('google')) ||
+                    voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('samantha')) ||
                     voices.find(v => v.lang.startsWith('en-US')) ||
                     voices.find(v => v.lang.startsWith('en-'));
     if (enVoice) {
