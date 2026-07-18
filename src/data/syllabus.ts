@@ -501,3 +501,17 @@ export function getLessonActivities(unitId: string, lessonId: string): any[] {
     }
   ];
 }
+
+// Dynamically append L5 - Speaking with AI Teacher to every unit's lessons list
+syllabusData.forEach(unit => {
+  if (unit.lessons.length === 4) {
+    unit.lessons.push({
+      id: 'lesson-5',
+      title: 'Speaking with AI Teacher',
+      focus: 'Luyện nói phản xạ với Giáo viên AI',
+      vocabulary: [],
+      sentencePatterns: [],
+      activities: []
+    });
+  }
+});
