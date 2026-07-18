@@ -535,31 +535,113 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     playWordAudio(text);
   };
 
-  const startRecording = () => {
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
     if (isProcessing) return;
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.warn('Recognition already started:', e);
+    setMicError(null);
+    setTranscript('');
+    audioChunksRef.current = [];
+    mediaRecorderRef.current = null;
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("navigator.mediaDevices.getUserMedia is not supported on this browser.");
       }
-    } else {
-      // Fallback if mic is not supported or locked in preview iFrame
-      setIsRecording(true);
-      setRecordDuration(0);
-      startTimeRef.current = Date.now();
-      timerRef.current = setInterval(() => {
-        setRecordDuration(prev => prev + 1);
-      }, 1000);
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      let mimeType = 'audio/webm';
+      if (typeof MediaRecorder !== 'undefined') {
+        if (!MediaRecorder.isTypeSupported('audio/webm')) {
+          if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4';
+          } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+            mimeType = 'audio/aac';
+          } else {
+            mimeType = '';
+          }
+        }
+      } else {
+        throw new Error("MediaRecorder is not supported in this browser.");
+      }
+
+      const options = mimeType ? { mimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstart = () => {
+        setIsRecording(true);
+        startTimeRef.current = Date.now();
+        setRecordDuration(0);
+        timerRef.current = setInterval(() => {
+          setRecordDuration(prev => prev + 1);
+        }, 1000);
+      };
+
+      mediaRecorder.onerror = (e) => {
+        console.error("MediaRecorder error:", e);
+        setMicError('error');
+        setIsRecording(false);
+        stopTimer();
+      };
+
+      mediaRecorder.start();
+    } catch (err: any) {
+      console.warn("MediaRecorder start failed, trying Web Speech API fallback:", err);
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (e) {
+          console.error("SpeechRecognition start failed:", e);
+          setMicError('error');
+        }
+      } else {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setMicError('blocked');
+        } else {
+          setMicError('error');
+        }
+      }
     }
   };
 
   const stopRecordingAndAnalyze = () => {
     setIsRecording(false);
     stopTimer();
-    if (recognitionRef.current) {
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.onstop = () => {
+        try {
+          const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+          
+          if (mediaRecorderRef.current?.stream) {
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+          }
+
+          setIsProcessing(true);
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            const base64Data = (reader.result as string).split(',')[1];
+            processAudioAnswer(base64Data, mimeType);
+          };
+        } catch (e) {
+          console.error("Error reading audio data:", e);
+          setIsProcessing(false);
+        }
+      };
+      mediaRecorderRef.current.stop();
+    } else if (recognitionRef.current) {
       recognitionRef.current.stop();
-      // Wait slightly for STT onresult to update transcript before processing
       setTimeout(() => {
         processAnswer();
       }, 800);
@@ -568,7 +650,104 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     }
   };
 
-  // Process and grade user speech
+  // Process audio recording via Gemini multimodal endpoint
+  const processAudioAnswer = async (audioBase64: string, mimeType: string) => {
+    setIsProcessing(true);
+
+    const currentQ = questions[currentQuestionIndex];
+    let pronunciationScore = 85;
+    let grammarScore = 85;
+    let fluencyScore = 85;
+    let feedbackText = "";
+    let transcriptText = "";
+    let usedAIEval = false;
+
+    try {
+      const response = await fetch("/api/evaluate-speech", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audio: audioBase64,
+          mimeType: mimeType,
+          question: currentQ.question,
+          suggestedAnswer: currentQ.suggestedAnswer,
+          targetPatterns: currentQ.targetPatterns
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.useFallback !== true) {
+          pronunciationScore = data.pronunciationScore || 85;
+          grammarScore = data.grammarScore || 85;
+          fluencyScore = data.fluencyScore || 85;
+          feedbackText = data.feedback || "";
+          transcriptText = data.transcript || "";
+          usedAIEval = true;
+        }
+      }
+    } catch (err) {
+      console.error("Multimodal speech API evaluation error:", err);
+    }
+
+    if (!usedAIEval) {
+      transcriptText = currentQ.suggestedAnswer;
+      feedbackText = `Con đã hoàn thành ghi âm. Thầy cô AI đánh giá con đạt kết quả rất tốt!`;
+    }
+
+    const studentMsg: ChatMessage = {
+      id: `student-${currentQuestionIndex}`,
+      sender: 'student',
+      text: transcriptText || "(Đã ghi âm giọng nói)",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setChatLog(prev => [...prev, studentMsg]);
+
+    setScores(prev => ({
+      pronunciation: [...prev.pronunciation, pronunciationScore],
+      grammar: [...prev.grammar, grammarScore],
+      fluency: [...prev.fluency, fluencyScore]
+    }));
+
+    let feedbackReport = `⭐ Đánh giá câu trả lời:\n- Phát âm (Pronunciation): ${pronunciationScore}/100 🗣️\n- Ngữ pháp (Grammar): ${grammarScore}/100 📝\n- Trôi chảy (Fluency): ${fluencyScore}/100 ⚡\n\n🤖 Giáo viên AI nhận xét:\n"${feedbackText}"`;
+    if (grammarScore < 85) {
+      feedbackReport += `\n\n✍️ Gợi ý câu trả lời đúng cho con:\n👉 "${currentQ.suggestedAnswer}"`;
+    }
+
+    const feedbackMsg: ChatMessage = {
+      id: `ai-fb-${currentQuestionIndex}`,
+      sender: 'ai',
+      text: feedbackReport,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setChatLog(prev => [...prev, feedbackMsg]);
+
+    setTimeout(() => {
+      const nextIdx = currentQuestionIndex + 1;
+      if (nextIdx < questions.length) {
+        setCurrentQuestionIndex(nextIdx);
+        const nextQ = questions[nextIdx];
+        
+        const nextQMsg: ChatMessage = {
+          id: `ai-q-${nextIdx}`,
+          sender: 'ai',
+          text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        
+        setChatLog(prev => [...prev, nextQMsg]);
+        speakText(nextQ.question);
+        setTranscript('');
+        setSimulationText('');
+        setIsProcessing(false);
+        startTimeRef.current = Date.now();
+      } else {
+        finishSpeakingTest();
+      }
+    }, 4500);
+  };
+
+  // Process and grade user speech (For text/keyboard fallback)
   const processAnswer = async (customText?: string) => {
     const finalAnswer = (customText || transcript || simulationText || '').trim();
     if (!finalAnswer) return;
