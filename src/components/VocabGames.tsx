@@ -9,6 +9,7 @@ import {
   Gamepad2, Volume2, HelpCircle, Star, Sparkles, Check, 
   X, AlertCircle, RefreshCw, Trophy, Award, Timer, Flame
 } from 'lucide-react';
+import { playWordAudio } from '../lib/audioHelper';
 
 interface VocabGamesProps {
   vocabList: VocabularyItem[];
@@ -46,13 +47,7 @@ export default function VocabGames({ vocabList, onAwardPoints, onWordMastered }:
 
   // Speaks out words using browser's Text-to-Speech synthesis
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85; // slightly slower for children
-      window.speechSynthesis.speak(utterance);
-    }
+    playWordAudio(text);
   };
 
   // Generic option shuffler for Multiple Choices
