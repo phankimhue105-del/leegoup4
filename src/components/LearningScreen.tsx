@@ -15,6 +15,7 @@ import {
   ArrowLeft, BookOpen, Sparkles, Trophy, CheckCircle, 
   ChevronRight, Volume2, Mic, Play, Smile, HelpCircle, Heart, Star, Award, MessageSquare
 } from 'lucide-react';
+import { playWordAudio } from '../lib/audioHelper';
 
 interface LearningScreenProps {
   session: UserSession;
@@ -65,7 +66,11 @@ export default function LearningScreen({ session, onUpdateSession, selectedUnitI
   // Handle lesson switching
   const handleLessonSelect = (lesson: Lesson) => {
     setActiveLesson(lesson);
-    setCurrentTab('study');
+    if (lesson.id === 'lesson-5') {
+      setCurrentTab('speaking_coach');
+    } else {
+      setCurrentTab('study');
+    }
     resetActivityStates(lesson);
   };
 
@@ -113,14 +118,7 @@ export default function LearningScreen({ session, onUpdateSession, selectedUnitI
 
   // Speaks out words using browser's Text-to-Speech synthesis
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85; // slightly slower for children
-      window.speechSynthesis.speak(utterance);
-    } else {
-      console.log('Text to Speech is not supported in this browser.');
-    }
+    playWordAudio(text);
   };
 
   // Handles Flashcard flip / Navigation
@@ -305,6 +303,10 @@ export default function LearningScreen({ session, onUpdateSession, selectedUnitI
         onUpdateSession={onUpdateSession}
         activeUnit={activeUnit}
         onBack={() => {
+          if (activeLesson.id === 'lesson-5') {
+            const l4 = activeUnit.lessons.find(l => l.id === 'lesson-4') || activeUnit.lessons[0];
+            setActiveLesson(l4);
+          }
           setCurrentTab('study');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
@@ -432,28 +434,16 @@ export default function LearningScreen({ session, onUpdateSession, selectedUnitI
             </div>
           </div>
 
-          {/* AI Speaking Coach Trigger with Lock logic */}
+          {/* AI Speaking Coach Trigger (Unlocked) */}
           <button 
-            disabled={!hasCompletedVocab || !hasCompletedGrammar || !hasCompletedQuiz}
             onClick={() => {
-              if (hasCompletedVocab && hasCompletedGrammar && hasCompletedQuiz) {
-                setCurrentTab('speaking_coach');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }
+              const l5 = activeUnit.lessons.find(l => l.id === 'lesson-5') || activeUnit.lessons[0];
+              handleLessonSelect(l5);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className={`w-full text-xs font-black py-3 px-3 rounded-2xl transition text-center block shadow-sm ${
-              hasCompletedVocab && hasCompletedGrammar && hasCompletedQuiz
-                ? 'bg-brand-primary hover:bg-rose-600 text-white cursor-pointer'
-                : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-            }`}
+            className="w-full text-xs font-black py-3 px-3 rounded-2xl transition text-center block shadow-sm bg-brand-primary hover:bg-rose-600 text-white cursor-pointer"
           >
-            {hasCompletedVocab && hasCompletedGrammar && hasCompletedQuiz ? (
-              <span>AI Speaking Coach → Bắt đầu 🤖</span>
-            ) : (
-              <span className="flex items-center justify-center gap-1">
-                🔒 Khóa (Cần học xong & làm Kiểm tra)
-              </span>
-            )}
+            <span>AI Speaking Coach → Bắt đầu 🤖</span>
           </button>
         </div>
       </div>
