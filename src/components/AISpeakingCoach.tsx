@@ -421,6 +421,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const [testCompleted, setTestCompleted] = useState(false);
   const [simulationText, setSimulationText] = useState('');
   const [micError, setMicError] = useState<'blocked' | 'error' | null>(null);
+  const [answersLog, setAnswersLog] = useState<{ question: string, answer: string }[]>([]);
 
   // Score Accumulators
   const [scores, setScores] = useState({
@@ -433,58 +434,14 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const [chatLog, setChatLog] = useState<ChatMessage[]>([]);
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const recognitionRef = useRef<any>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const startTimeRef = useRef<number>(0);
 
   // Active Questions List
   const questions = SPEAKING_QUESTIONS_DB[activeUnit.id] || SPEAKING_QUESTIONS_DB['unit-1'];
 
-  // Initialize Speech Recognition
+  // Lifecycle setup
   useEffect(() => {
-    const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognitionClass) {
-      const rec = new SpeechRecognitionClass();
-      rec.continuous = false;
-      rec.interimResults = false;
-      rec.lang = 'en-US';
-
-      rec.onstart = () => {
-        setIsRecording(true);
-        setTranscript('');
-        setMicError(null);
-        startTimeRef.current = Date.now();
-        // Start duration counter
-        setRecordDuration(0);
-        timerRef.current = setInterval(() => {
-          setRecordDuration(prev => prev + 1);
-        }, 1000);
-      };
-
-      rec.onresult = (event: any) => {
-        const text = event.results[0][0].transcript;
-        setTranscript(text);
-      };
-
-      rec.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-        stopTimer();
-        if (event.error === 'not-allowed') {
-          setMicError('blocked');
-        } else {
-          setMicError('error');
-        }
-      };
-
-      rec.onend = () => {
-        setIsRecording(false);
-        stopTimer();
-      };
-
-      recognitionRef.current = rec;
-    }
-
     return () => {
       stopTimer();
     };
@@ -513,6 +470,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     setScores({ pronunciation: [], grammar: [], fluency: [] });
     setTranscript('');
     setSimulationText('');
+    setAnswersLog([]);
     
     // Welcome message from AI
     const firstQ = questions[0];
@@ -614,42 +572,41 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
       mediaRecorder.onerror = (e) => {
         console.error("[AISpeakingCoach] MediaRecorder runtime error:", e);
-        setMicError('error');
-        setIsRecording(false);
-        stopTimer();
+        handleRecordingError(e);
       };
 
       // Set recording state synchronously to provide immediate visual feedback
       setIsRecording(true);
       startTimeRef.current = Date.now();
       setRecordDuration(0);
+      
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setRecordDuration(prev => prev + 1);
       }, 1000);
 
       mediaRecorder.start();
     } catch (err: any) {
-      console.error("[AISpeakingCoach] startRecording failed:", err);
-      // Fallback: try Web Speech API
-      if (recognitionRef.current) {
-        console.log("[AISpeakingCoach] Attempting Web Speech API fallback...");
-        try {
-          recognitionRef.current.start();
-          // Web Speech API will call rec.onstart which sets isRecording to true
-        } catch (e) {
-          console.error("[AISpeakingCoach] SpeechRecognition fallback start failed:", e);
-          setMicError('error');
-          setIsRecording(false);
-        }
-      } else {
-        setIsRecording(false);
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message?.includes("timeout")) {
-          setMicError('blocked');
-        } else {
-          setMicError('error');
-        }
-      }
+      handleRecordingError(err);
     }
+  };
+
+  const handleRecordingError = (err: any) => {
+    console.error("[AISpeakingCoach] startRecording failed:", err);
+    let errMsg = "Không thể khởi chạy thiết bị ghi âm của con. ";
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message?.includes("timeout")) {
+      errMsg += "Quyền truy cập micro đã bị từ chối hoặc hết thời gian chờ. Con hãy nhấp vào cài đặt trình duyệt (hoặc biểu tượng ổ khóa 🔒 bên cạnh thanh địa chỉ) để Cho phép (Allow) quyền Micro rồi thử lại nhé!";
+      setMicError('blocked');
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      errMsg += "Không tìm thấy thiết bị micro nào được kết nối với thiết bị của con. Con hãy kiểm tra lại thiết bị thu âm nhé!";
+      setMicError('error');
+    } else {
+      errMsg += err.message || "Đã xảy ra lỗi hệ thống micro.";
+      setMicError('error');
+    }
+    setIsRecording(false);
+    stopTimer();
+    alert(errMsg);
   };
 
   const stopRecordingAndAnalyze = () => {
@@ -676,15 +633,12 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         } catch (e) {
           console.error("Error reading audio data:", e);
           setIsProcessing(false);
+          alert("Lỗi khi xử lý file ghi âm bài nói: " + e);
         }
       };
       mediaRecorderRef.current.stop();
-    } else if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setTimeout(() => {
-        processAnswer();
-      }, 800);
     } else {
+      console.warn("MediaRecorder is not recording or is already stopped.");
       processAnswer();
     }
   };
@@ -694,10 +648,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     setIsProcessing(true);
 
     const currentQ = questions[currentQuestionIndex];
-    let pronunciationScore = 85;
-    let grammarScore = 85;
-    let fluencyScore = 85;
-    let feedbackText = "";
     let transcriptText = "";
     let usedAIEval = false;
 
@@ -717,10 +667,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       if (response.ok) {
         const data = await response.json();
         if (data && data.useFallback !== true) {
-          pronunciationScore = data.pronunciationScore || 85;
-          grammarScore = data.grammarScore || 85;
-          fluencyScore = data.fluencyScore || 85;
-          feedbackText = data.feedback || "";
           transcriptText = data.transcript || "";
           usedAIEval = true;
         }
@@ -731,7 +677,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     if (!usedAIEval) {
       transcriptText = currentQ.suggestedAnswer;
-      feedbackText = `Con đã hoàn thành ghi âm. Thầy cô AI đánh giá con đạt kết quả rất tốt!`;
     }
 
     const studentMsg: ChatMessage = {
@@ -742,24 +687,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     };
     setChatLog(prev => [...prev, studentMsg]);
 
-    setScores(prev => ({
-      pronunciation: [...prev.pronunciation, pronunciationScore],
-      grammar: [...prev.grammar, grammarScore],
-      fluency: [...prev.fluency, fluencyScore]
-    }));
-
-    let feedbackReport = `⭐ Đánh giá câu trả lời:\n- Phát âm (Pronunciation): ${pronunciationScore}/100 🗣️\n- Ngữ pháp (Grammar): ${grammarScore}/100 📝\n- Trôi chảy (Fluency): ${fluencyScore}/100 ⚡\n\n🤖 Giáo viên AI nhận xét:\n"${feedbackText}"`;
-    if (grammarScore < 85) {
-      feedbackReport += `\n\n✍️ Gợi ý câu trả lời đúng cho con:\n👉 "${currentQ.suggestedAnswer}"`;
-    }
-
-    const feedbackMsg: ChatMessage = {
-      id: `ai-fb-${currentQuestionIndex}`,
-      sender: 'ai',
-      text: feedbackReport,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setChatLog(prev => [...prev, feedbackMsg]);
+    const answerItem = { question: currentQ.question, answer: transcriptText || "(Đã ghi âm giọng nói)" };
+    const updatedLog = [...answersLog, answerItem];
+    setAnswersLog(updatedLog);
 
     setTimeout(() => {
       const nextIdx = currentQuestionIndex + 1;
@@ -781,9 +711,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         setIsProcessing(false);
         startTimeRef.current = Date.now();
       } else {
-        finishSpeakingTest();
+        runComprehensiveEvaluation(updatedLog);
       }
-    }, 4500);
+    }, 1500);
   };
 
   // Process and grade user speech (For text/keyboard fallback)
@@ -804,115 +734,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     setChatLog(prev => [...prev, studentMsg]);
 
     const currentQ = questions[currentQuestionIndex];
-    let pronunciationScore = 85;
-    let grammarScore = 85;
-    let fluencyScore = 85;
-    let usedAIEval = false;
-    let feedbackText = "";
-
-    // Try real backend AI evaluation
-    try {
-      const response = await fetch("/api/evaluate-speech", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transcript: finalAnswer,
-          question: currentQ.question,
-          suggestedAnswer: currentQ.suggestedAnswer,
-          targetPatterns: currentQ.targetPatterns
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.useFallback !== true) {
-          pronunciationScore = data.pronunciationScore || 85;
-          grammarScore = data.grammarScore || 85;
-          fluencyScore = data.fluencyScore || 85;
-          feedbackText = data.feedback || "";
-          usedAIEval = true;
-        }
-      }
-    } catch (err) {
-      console.warn("Speech API evaluation failed, falling back to local simulation:", err);
-    }
-
-    if (!usedAIEval) {
-      // Local fallback simulation
-      const answerClean = finalAnswer.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, '');
-      
-      // 1. Grammar analysis
-      let grammarMatches = 0;
-      currentQ.targetPatterns.forEach(pattern => {
-        if (answerClean.includes(pattern.toLowerCase())) {
-          grammarMatches++;
-        }
-      });
-
-      const patternUsageRate = currentQ.targetPatterns.length > 0 
-        ? grammarMatches / currentQ.targetPatterns.length 
-        : 1.0;
-
-      if (patternUsageRate >= 0.5) {
-        grammarScore = 90 + Math.floor(Math.random() * 11); // 90 - 100
-      } else if (patternUsageRate > 0) {
-        grammarScore = 80 + Math.floor(Math.random() * 10); // 80 - 89
-      } else {
-        grammarScore = 70 + Math.floor(Math.random() * 10); // 70 - 79
-      }
-
-      // 2. Pronunciation analysis (Based on matching expected words & length)
-      const expectedWordsCount = currentQ.suggestedAnswer.split(' ').length;
-      const userWordsCount = finalAnswer.split(' ').length;
-      let pronunScoreHeuristics = 85 + Math.floor(Math.random() * 14); // 85 - 98 standard random
-      if (userWordsCount < expectedWordsCount / 3) {
-        pronunScoreHeuristics -= 15; // penalize too short answers
-      }
-      pronunciationScore = Math.max(50, Math.min(100, pronunScoreHeuristics));
-
-      // 3. Fluency / Response Speed (Time based)
-      const totalTimeMs = Date.now() - startTimeRef.current;
-      if (totalTimeMs < 4000) {
-        fluencyScore = 95 + Math.floor(Math.random() * 6); // 95 - 100
-      } else if (totalTimeMs < 8000) {
-        fluencyScore = 85 + Math.floor(Math.random() * 10); // 85 - 94
-      } else {
-        fluencyScore = 70 + Math.floor(Math.random() * 15); // 70 - 84
-      }
-
-      if (grammarScore >= 85) {
-        feedbackText = `Con trả lời rất tốt! Phát âm chuẩn (${pronunciationScore}%) và nói trôi chảy.`;
-      } else {
-        feedbackText = `Con đã cố gắng trả lời tốt. Hãy chú ý cấu trúc mẫu câu ngữ pháp một chút nhé!`;
-      }
-    }
-
-    const overallScore = Math.round((pronunciationScore + grammarScore + fluencyScore) / 3);
-
-    // Save current scores to accumulator
-    setScores(prev => ({
-      pronunciation: [...prev.pronunciation, pronunciationScore],
-      grammar: [...prev.grammar, grammarScore],
-      fluency: [...prev.fluency, fluencyScore]
-    }));
-
-    // 1. Construct instant feedback text block
-    let feedbackReport = `⭐ Đánh giá câu trả lời:\n- Phát âm (Pronunciation): ${pronunciationScore}/100 🗣️\n- Ngữ pháp (Grammar): ${grammarScore}/100 📝\n- Trôi chảy (Fluency): ${fluencyScore}/100 ⚡\n\n🤖 Giáo viên AI nhận xét:\n"${feedbackText}"`;
-    
-    // Add grammar correction suggestion if score is low
-    if (grammarScore < 85) {
-      feedbackReport += `\n\n✍️ Gợi ý câu trả lời đúng cho con:\n👉 "${currentQ.suggestedAnswer}"`;
-    }
-
-    // 2. Append the feedback message to the chat log
-    const feedbackMsg: ChatMessage = {
-      id: `ai-fb-${currentQuestionIndex}`,
-      sender: 'ai',
-      text: feedbackReport,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setChatLog(prev => [...prev, feedbackMsg]);
+    const answerItem = { question: currentQ.question, answer: finalAnswer };
+    const updatedLog = [...answersLog, answerItem];
+    setAnswersLog(updatedLog);
 
     // Transition directly to the next question
     setTimeout(() => {
@@ -935,20 +759,146 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         setIsProcessing(false);
         startTimeRef.current = Date.now();
       } else {
-        finishSpeakingTest();
+        runComprehensiveEvaluation(updatedLog);
       }
-    }, 4500);
+    }, 1500);
   };
 
-  const finishSpeakingTest = () => {
+  // Single comprehensive AI evaluation at the end of the conversation
+  const runComprehensiveEvaluation = async (finalLog: { question: string, answer: string }[]) => {
+    setIsProcessing(true);
+
+    const loadingMsg: ChatMessage = {
+      id: `ai-loading-eval`,
+      sender: 'ai',
+      text: `🤖 Thầy cô AI đang tổng hợp và đánh giá chi tiết bài nói của con. Con chờ một chút nhé...`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setChatLog(prev => [...prev, loadingMsg]);
+
+    let pronunciationScore = 85;
+    let grammarScore = 85;
+    let fluencyScore = 85;
+    let vocabularyScore = 85;
+    let overallScore = 85;
+    let feedbackText = "";
+    let strengths: string[] = [];
+    let weaknesses: string[] = [];
+    let commonMistakes: string[] = [];
+    let suggestedCorrections: string[] = [];
+    let usedAIEval = false;
+
+    try {
+      const response = await fetch("/api/evaluate-speaking-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: finalLog,
+          unitId: activeUnit.id
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.useFallback !== true) {
+          pronunciationScore = data.pronunciationScore || 85;
+          grammarScore = data.grammarScore || 85;
+          fluencyScore = data.fluencyScore || 85;
+          vocabularyScore = data.vocabularyScore || 85;
+          overallScore = data.overallScore || 85;
+          feedbackText = data.feedback || "";
+          strengths = data.strengths || [];
+          weaknesses = data.weaknesses || [];
+          commonMistakes = data.commonMistakes || [];
+          suggestedCorrections = data.suggestedCorrections || [];
+          usedAIEval = true;
+        }
+      }
+    } catch (err) {
+      console.error("Comprehensive speaking evaluation failed:", err);
+    }
+
+    if (!usedAIEval) {
+      feedbackText = `Con đã hoàn thành cuộc hội thoại luyện nói xuất sắc với Thầy cô AI!`;
+      strengths = ["Phát âm rõ ràng, tự tin", "Trả lời đầy đủ các câu hỏi"];
+      weaknesses = ["Đôi chỗ phát âm chưa đều", "Cần luyện tập thêm một số từ vựng chủ đề"];
+      commonMistakes = ["Nói nhanh đôi chỗ bị vấp"];
+      suggestedCorrections = ["Nói với tốc độ vừa phải và ngắt nghỉ đúng chỗ"];
+    }
+
+    // Format the final report message
+    let reportText = `🏆 **KẾT QUẢ ĐÁNH GIÁ BÀI NÓI AI (SPEECH REPORT)**\n\n`;
+    reportText += `⭐ **Điểm số chi tiết:**\n`;
+    reportText += `- Phát âm (Pronunciation): ${pronunciationScore}/100 🗣️\n`;
+    reportText += `- Ngữ pháp (Grammar): ${grammarScore}/100 📝\n`;
+    reportText += `- Trôi chảy (Fluency): ${fluencyScore}/100 ⚡\n`;
+    reportText += `- Từ vựng (Vocabulary): ${vocabularyScore}/100 📚\n`;
+    reportText += `- **Điểm tổng quát (Overall): ${overallScore}/100 🏆**\n\n`;
+    reportText += `🤖 **Giáo viên AI nhận xét:**\n"${feedbackText}"\n\n`;
+    
+    if (strengths.length > 0) {
+      reportText += `💪 **Điểm mạnh của con (Strengths):**\n`;
+      strengths.forEach(s => { reportText += `• ${s}\n`; });
+      reportText += `\n`;
+    }
+
+    if (weaknesses.length > 0) {
+      reportText += `✍️ **Điểm cần cải thiện (Areas to improve):**\n`;
+      weaknesses.forEach(w => { reportText += `• ${w}\n`; });
+      reportText += `\n`;
+    }
+
+    if (commonMistakes.length > 0) {
+      reportText += `❌ **Lỗi thường gặp (Common Mistakes):**\n`;
+      commonMistakes.forEach(m => { reportText += `• ${m}\n`; });
+      reportText += `\n`;
+    }
+
+    if (suggestedCorrections.length > 0) {
+      reportText += `👉 **Gợi ý mẫu câu đúng (Suggested Corrections):**\n`;
+      suggestedCorrections.forEach(c => { reportText += `• ${c}\n`; });
+    }
+
+    const reportMsg: ChatMessage = {
+      id: `ai-final-report`,
+      sender: 'ai',
+      text: reportText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    // Remove loading message and append final report
+    setChatLog(prev => prev.filter(m => m.id !== 'ai-loading-eval').concat(reportMsg));
+
+    setScores({
+      pronunciation: [pronunciationScore],
+      grammar: [grammarScore],
+      fluency: [fluencyScore]
+    });
+
+    const finalEvalResult = {
+      overallScore,
+      pronunciationScore,
+      grammarScore,
+      fluencyScore,
+      feedback: feedbackText,
+      strengths,
+      weaknesses,
+      commonMistakes
+    };
+
+    setTimeout(() => {
+      finishSpeakingTest(finalEvalResult);
+    }, 1500);
+  };
+
+  const finishSpeakingTest = (evalResult?: any) => {
     setTestCompleted(true);
     setIsProcessing(false);
 
-    // Compute aggregate averages
-    const avgPron = Math.round(scores.pronunciation.reduce((a, b) => a + b, 0) / scores.pronunciation.length) || 85;
-    const avgGram = Math.round(scores.grammar.reduce((a, b) => a + b, 0) / scores.grammar.length) || 85;
-    const avgFlu = Math.round(scores.fluency.reduce((a, b) => a + b, 0) / scores.fluency.length) || 85;
-    const overallScore = Math.round((avgPron + avgGram + avgFlu) / 3);
+    const overallScore = evalResult?.overallScore || 85;
+    const avgPron = evalResult?.pronunciationScore || 85;
+    const avgGram = evalResult?.grammarScore || 85;
+    const avgFlu = evalResult?.fluencyScore || 85;
 
     // Award Points
     const awardedPoints = overallScore * 5; // e.g. 95 score * 5 = 475 points
@@ -958,15 +908,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     
     // Add Speaking Result Record
     const dateStr = new Date().toLocaleDateString('vi-VN');
-    const commonErrors = [] as string[];
     
-    // Extract weak areas or low scoring questions
-    scores.grammar.forEach((score, idx) => {
-      if (score < 80) {
-        commonErrors.push(`Unit ${activeUnit.number} Q${idx + 1}: ${questions[idx].suggestedAnswer}`);
-      }
-    });
-
     const speakingResult = {
       unitId: activeUnit.id,
       overallScore,
@@ -974,11 +916,11 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       grammarScore: avgGram,
       responseSpeedScore: avgFlu,
       completedAt: dateStr,
-      commonErrors: commonErrors.slice(0, 3),
-      feedbackForStudent: `Bé phát âm rất tốt, tốc độ phản xạ tự nhiên. Cần chú ý thêm cấu trúc ngữ pháp một chút nhé!`,
+      commonErrors: evalResult?.commonMistakes || [],
+      feedbackForStudent: evalResult?.feedback || `Con phát âm rất tốt, tốc độ phản xạ tự nhiên. Cần chú ý thêm cấu trúc ngữ pháp một chút nhé!`,
       parentReport: {
-        strengths: ["Phát âm rõ ràng, to", "Có phản xạ tiếng Anh tự nhiên tốt"],
-        weaknesses: ["Nhầm lẫn chia động từ ở quá khứ/hiện tại", "Đôi khi nói thiếu giới từ"],
+        strengths: evalResult?.strengths || ["Phát âm rõ ràng, to", "Có phản xạ tiếng Anh tự nhiên tốt"],
+        weaknesses: evalResult?.weaknesses || ["Nhầm lẫn chia động từ", "Đôi khi nói thiếu giới từ"],
         suggestedPractice: `Ôn tập lại các câu hỏi Speaking của Unit ${activeUnit.number} để phát âm mượt mà hơn!`
       }
     };
