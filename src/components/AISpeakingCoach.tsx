@@ -420,7 +420,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const [isMuted, setIsMuted] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
   const [simulationText, setSimulationText] = useState('');
-  const [showHelper, setShowHelper] = useState(false);
   const [micError, setMicError] = useState<'blocked' | 'error' | null>(null);
 
   // Score Accumulators
@@ -545,12 +544,35 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     audioChunksRef.current = [];
     mediaRecorderRef.current = null;
 
+    console.log("[AISpeakingCoach] Requesting microphone access...");
+
+    // Timeout helper to avoid infinite hanging when getUserMedia is blocked/unresponsive
+    const getUserMediaWithTimeout = (constraints: MediaStreamConstraints, timeoutMs: number): Promise<MediaStream> => {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error("Microphone permission prompt timeout (4000ms elapsed)"));
+        }, timeoutMs);
+
+        navigator.mediaDevices.getUserMedia(constraints)
+          .then((stream) => {
+            clearTimeout(timer);
+            resolve(stream);
+          })
+          .catch((err) => {
+            clearTimeout(timer);
+            reject(err);
+          });
+      });
+    };
+
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("navigator.mediaDevices.getUserMedia is not supported on this browser.");
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Timeout in 4 seconds if prompt doesn't resolve/reject
+      const stream = await getUserMediaWithTimeout({ audio: true }, 4000);
+      console.log("[AISpeakingCoach] Microphone access granted!");
 
       let mimeType = 'audio/webm';
       if (typeof MediaRecorder !== 'undefined') {
@@ -567,8 +589,17 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         throw new Error("MediaRecorder is not supported in this browser.");
       }
 
+      console.log("[AISpeakingCoach] Using MIME type:", mimeType);
       const options = mimeType ? { mimeType } : undefined;
-      const mediaRecorder = new MediaRecorder(stream, options);
+      
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, options);
+      } catch (e) {
+        console.warn("[AISpeakingCoach] Failed to create MediaRecorder with options, trying default...", e);
+        mediaRecorder = new MediaRecorder(stream);
+      }
+
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -578,33 +609,41 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       };
 
       mediaRecorder.onstart = () => {
-        setIsRecording(true);
-        startTimeRef.current = Date.now();
-        setRecordDuration(0);
-        timerRef.current = setInterval(() => {
-          setRecordDuration(prev => prev + 1);
-        }, 1000);
+        console.log("[AISpeakingCoach] MediaRecorder started recording!");
       };
 
       mediaRecorder.onerror = (e) => {
-        console.error("MediaRecorder error:", e);
+        console.error("[AISpeakingCoach] MediaRecorder runtime error:", e);
         setMicError('error');
         setIsRecording(false);
         stopTimer();
       };
 
+      // Set recording state synchronously to provide immediate visual feedback
+      setIsRecording(true);
+      startTimeRef.current = Date.now();
+      setRecordDuration(0);
+      timerRef.current = setInterval(() => {
+        setRecordDuration(prev => prev + 1);
+      }, 1000);
+
       mediaRecorder.start();
     } catch (err: any) {
-      console.warn("MediaRecorder start failed, trying Web Speech API fallback:", err);
+      console.error("[AISpeakingCoach] startRecording failed:", err);
+      // Fallback: try Web Speech API
       if (recognitionRef.current) {
+        console.log("[AISpeakingCoach] Attempting Web Speech API fallback...");
         try {
           recognitionRef.current.start();
+          // Web Speech API will call rec.onstart which sets isRecording to true
         } catch (e) {
-          console.error("SpeechRecognition start failed:", e);
+          console.error("[AISpeakingCoach] SpeechRecognition fallback start failed:", e);
           setMicError('error');
+          setIsRecording(false);
         }
       } else {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setIsRecording(false);
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message?.includes("timeout")) {
           setMicError('blocked');
         } else {
           setMicError('error');
@@ -1115,20 +1154,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
                 </div>
               )}
 
-              {/* Helper suggestion toggle */}
-              {showHelper && (
-                <div className="bg-amber-50 border border-amber-100/50 p-3.5 rounded-2xl text-xs space-y-1.5 animate-fade-in">
-                  <div className="flex items-center space-x-1 text-amber-700">
-                    <span className="font-extrabold">💡 Mẫu câu gợi ý cho bé:</span>
-                  </div>
-                  <p className="font-mono text-slate-700 font-bold select-all bg-white p-2 rounded-xl border border-slate-100">
-                    {questions[currentQuestionIndex].suggestedAnswer}
-                  </p>
-                  <p className="text-[10px] text-slate-400 italic">
-                    (Mẹo: Nhấn đúp để sao chép từ gợi ý nếu bé chưa nhớ ra nhé!)
-                  </p>
-                </div>
-              )}
 
               {/* Microphone access error banner */}
               {micError === 'blocked' && (
@@ -1161,15 +1186,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
               {/* Control buttons group */}
               <div className="flex items-center justify-between gap-4">
                 
-                {/* Helper Toggle Button */}
-                <button
-                  onClick={() => setShowHelper(!showHelper)}
-                  className={`px-4 py-3 rounded-2xl border text-xs font-bold transition flex items-center space-x-1 bg-white cursor-pointer ${
-                    showHelper ? 'text-amber-600 border-amber-300 shadow-sm' : 'text-slate-500 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <span>💡 Gợi ý câu nói</span>
-                </button>
+                {/* Spacer to keep microphone button perfectly centered */}
+                <div className="w-24 hidden sm:block"></div>
 
                 {/* Main MIC trigger */}
                 <div className="flex-1 flex justify-center">
