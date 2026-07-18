@@ -497,6 +497,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
   const startRecording = async () => {
     if (isProcessing) return;
+    setIsProcessing(true);
     setMicError(null);
     setTranscript('');
     audioChunksRef.current = [];
@@ -508,7 +509,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     const getUserMediaWithTimeout = (constraints: MediaStreamConstraints, timeoutMs: number): Promise<MediaStream> => {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
-          reject(new Error("Microphone permission prompt timeout (4000ms elapsed)"));
+          reject(new Error("Microphone permission prompt timeout (15000ms elapsed)"));
         }, timeoutMs);
 
         navigator.mediaDevices.getUserMedia(constraints)
@@ -528,8 +529,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         throw new Error("navigator.mediaDevices.getUserMedia is not supported on this browser.");
       }
 
-      // Timeout in 4 seconds if prompt doesn't resolve/reject
-      const stream = await getUserMediaWithTimeout({ audio: true }, 4000);
+      // Timeout in 15 seconds to allow ample time for user to click "Allow" on permission dialog
+      const stream = await getUserMediaWithTimeout({ audio: true }, 15000);
       console.log("[AISpeakingCoach] Microphone access granted!");
 
       let mimeType = 'audio/webm';
@@ -577,6 +578,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
       // Set recording state synchronously to provide immediate visual feedback
       setIsRecording(true);
+      setIsProcessing(false);
       startTimeRef.current = Date.now();
       setRecordDuration(0);
       
@@ -605,6 +607,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       setMicError('error');
     }
     setIsRecording(false);
+    setIsProcessing(false);
     stopTimer();
     alert(errMsg);
   };
@@ -675,19 +678,23 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       console.error("Multimodal speech API evaluation error:", err);
     }
 
-    if (!usedAIEval) {
-      transcriptText = currentQ.suggestedAnswer;
+    // Require real transcribed input - NEVER auto-insert suggested answer!
+    if (!usedAIEval || !transcriptText.trim()) {
+      console.warn("[AISpeakingCoach] Audio transcription is empty or API evaluation failed. Stopping pipeline.");
+      setIsProcessing(false);
+      alert("Thầy cô AI chưa nghe rõ câu nói của con. Con hãy bấm nút Micro để nói lại hoặc gõ câu trả lời vào ô phía dưới nhé! (Please record or type your answer.)");
+      return;
     }
 
     const studentMsg: ChatMessage = {
       id: `student-${currentQuestionIndex}`,
       sender: 'student',
-      text: transcriptText || "(Đã ghi âm giọng nói)",
+      text: transcriptText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     setChatLog(prev => [...prev, studentMsg]);
 
-    const answerItem = { question: currentQ.question, answer: transcriptText || "(Đã ghi âm giọng nói)" };
+    const answerItem = { question: currentQ.question, answer: transcriptText };
     const updatedLog = [...answersLog, answerItem];
     setAnswersLog(updatedLog);
 
@@ -719,7 +726,13 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   // Process and grade user speech (For text/keyboard fallback)
   const processAnswer = async (customText?: string) => {
     const finalAnswer = (customText || transcript || simulationText || '').trim();
-    if (!finalAnswer) return;
+    
+    // Require real typed input - NEVER auto-insert suggested answer!
+    if (!finalAnswer) {
+      console.warn("[AISpeakingCoach] Empty text answer submitted. Stopping pipeline.");
+      alert("Bé hãy gõ hoặc nói câu trả lời của mình nhé! (Please record or type your answer.)");
+      return;
+    }
 
     setIsProcessing(true);
 
