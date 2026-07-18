@@ -562,13 +562,14 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
+          console.log(`Chunk received: size=${event.data.size}`);
           audioChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstart = () => {
-        console.log("[AISpeakingCoach] MediaRecorder started recording!");
+        console.log("Recording started");
       };
 
       mediaRecorder.onerror = (e) => {
@@ -576,7 +577,46 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         handleRecordingError(e);
       };
 
-      // Set recording state synchronously to provide immediate visual feedback
+      mediaRecorder.onstop = () => {
+        console.log("Recording stopped");
+        console.log(`Total chunks: ${audioChunksRef.current.length}`);
+
+        const actualMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: actualMimeType });
+
+        console.log(`Blob size: ${audioBlob.size}`);
+        console.log(`Blob type: ${audioBlob.type}`);
+
+        // Stop every MediaStreamTrack immediately
+        if (stream) {
+          stream.getTracks().forEach(track => {
+            console.log(`Stopping track: ${track.label}`);
+            track.stop();
+          });
+        }
+
+        // Clear audioChunksRef immediately
+        audioChunksRef.current = [];
+
+        if (audioBlob.size === 0) {
+          console.error("Recording failed. No audio was captured.");
+          setIsProcessing(false);
+          alert("Recording failed. No audio was captured.");
+          return;
+        }
+
+        setIsProcessing(true);
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64Data = (reader.result as string).split(',')[1];
+          console.log(`Base64 length: ${base64Data ? base64Data.length : 0}`);
+          console.log("Uploading audio...");
+          processAudioAnswer(base64Data, actualMimeType);
+        };
+      };
+
+      // Set recording state
       setIsRecording(true);
       setIsProcessing(false);
       startTimeRef.current = Date.now();
@@ -587,7 +627,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         setRecordDuration(prev => prev + 1);
       }, 1000);
 
-      mediaRecorder.start();
+      // Start recording with timeslice (e.g., 250ms) to ensure ondataavailable fires repeatedly
+      mediaRecorder.start(250);
     } catch (err: any) {
       handleRecordingError(err);
     }
@@ -617,28 +658,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     stopTimer();
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.onstop = () => {
-        try {
-          const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
-          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-          
-          if (mediaRecorderRef.current?.stream) {
-            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-          }
-
-          setIsProcessing(true);
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = () => {
-            const base64Data = (reader.result as string).split(',')[1];
-            processAudioAnswer(base64Data, mimeType);
-          };
-        } catch (e) {
-          console.error("Error reading audio data:", e);
-          setIsProcessing(false);
-          alert("Lỗi khi xử lý file ghi âm bài nói: " + e);
-        }
-      };
       mediaRecorderRef.current.stop();
     } else {
       console.warn("MediaRecorder is not recording or is already stopped.");
