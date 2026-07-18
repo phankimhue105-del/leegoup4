@@ -8,6 +8,7 @@ import { UserSession, Unit } from '../types';
 import { syllabusData } from '../data/syllabus';
 import { loadAdminMetrics, getUsersDB, isGuestModeEnabled, setGuestModeEnabled, getAppsScriptURL, saveAppsScriptURL, googleSheetsService } from '../lib/storage';
 import { vocabularyDatabase } from '../data/vocabulary';
+import { playWordAudio } from '../lib/audioHelper';
 import { 
   Flame, Trophy, BookOpen, CheckCircle, Clock, 
   Settings, Users, Server, CloudLightning, ChevronRight, 
@@ -311,12 +312,7 @@ export default function DashboardScreen({ session, onNavigate, onSelectUnit, onU
   const [quizCompleted, setQuizCompleted] = useState(false);
 
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85; // slightly slower for kids
-      window.speechSynthesis.speak(utterance);
-    }
+    playWordAudio(text);
   };
 
   const startSmartReview = () => {
