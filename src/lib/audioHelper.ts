@@ -3,10 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Initialize SpeechSynthesis voices immediately on file load for iOS WebKit compatibility
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  window.speechSynthesis.getVoices();
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
+}
+
 /**
  * Universal speech player to fix iPhone (iOS Safari/Chrome) audio issues.
- * Uses high-quality prerecorded Google Translate TTS MP3 files via HTML5 Audio.
- * Falls back to Web Speech API (speechSynthesis) if playing fails.
+ * Uses Youdao DictVoice API which acts as a stable, high-quality, CORS-friendly MP3 source.
+ * Falls back to Web Speech API (SpeechSynthesis) with forced English voice selection.
  */
 export const playWordAudio = (text: string): Promise<void> => {
   return new Promise((resolve) => {
@@ -21,9 +31,21 @@ export const playWordAudio = (text: string): Promise<void> => {
       return;
     }
 
-    // 2. Try playing Google Translate MP3 Audio directly
-    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(cleanedText)}`;
-    const audio = new Audio(audioUrl);
+    // 2. Play high-quality MP3 from Youdao DictVoice API (US Accent)
+    const audioUrl = `https://dict.youdao.com/dictvoice?type=2&audio=${encodeURIComponent(cleanedText)}`;
+    const audio = new Audio();
+    let hasFailed = false;
+
+    // Direct listener for play failure
+    audio.addEventListener('error', (e) => {
+      if (!hasFailed) {
+        hasFailed = true;
+        console.error("Youdao MP3 playback failed on iOS, trying TTS fallback:", e);
+        playTTSFallback(cleanedText, resolve);
+      }
+    });
+
+    audio.src = audioUrl;
     audio.preload = 'auto';
 
     audio.play()
@@ -31,21 +53,41 @@ export const playWordAudio = (text: string): Promise<void> => {
         audio.onended = () => resolve();
       })
       .catch((err) => {
-        console.warn("Prerecorded MP3 play failed, falling back to Web Speech API:", err);
-        
-        // 3. Fallback to browser SpeechSynthesis (TTS)
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(cleanedText);
-          utterance.lang = 'en-US';
-          utterance.rate = 0.85; // friendly pace for children
-          utterance.onend = () => resolve();
-          utterance.onerror = () => resolve();
-          window.speechSynthesis.speak(utterance);
-        } else {
-          resolve();
+        if (!hasFailed) {
+          hasFailed = true;
+          console.error("Youdao MP3 play promise rejected, trying TTS fallback:", err);
+          playTTSFallback(cleanedText, resolve);
         }
       });
   });
 };
 
+const playTTSFallback = (text: string, callback: () => void) => {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    callback();
+    return;
+  }
+
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.82;
+
+    // iOS voice lookup: search specifically for an English voice
+    const voices = window.speechSynthesis.getVoices();
+    const enVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+                    voices.find(v => v.lang.startsWith('en-US')) ||
+                    voices.find(v => v.lang.startsWith('en-'));
+    if (enVoice) {
+      utterance.voice = enVoice;
+    }
+
+    utterance.onend = () => callback();
+    utterance.onerror = () => callback();
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.error("SpeechSynthesis fallback failed:", err);
+    callback();
+  }
+};
