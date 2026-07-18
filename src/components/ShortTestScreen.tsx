@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect } from 'react';
 import { UserSession, TestResult } from '../types';
 import { unitTestsData, TestQuestion } from '../data/testData';
@@ -10,6 +5,83 @@ import {
   Volume2, HelpCircle, Star, Trophy, Sparkles, Check, 
   X, AlertCircle, ChevronRight, Award, Calendar, RefreshCw, Eye
 } from 'lucide-react';
+import { playWordAudio } from '../lib/audioHelper';
+
+// Listening complete gap-fill questions override dictionary
+const listenCompleteOverrides: Record<string, { gapQuestion: string, options: string[] }> = {
+  // Unit 1
+  'u1-q3': {
+    gapQuestion: 'We are hungry. Let’s grill ______ in the backyard!',
+    options: ['birds', 'hamburgers', 'fish', 'meat']
+  },
+  'u1-q6': {
+    gapQuestion: 'When you go snowboarding, always wear a ______ to protect your head.',
+    options: ['life jacket', 'helmet', 'seatbelt', 'backpack']
+  },
+  // Unit 2
+  'u2-q3': {
+    gapQuestion: 'Is the eel as ______ as the seal? Yes, it is.',
+    options: ['long', 'short', 'fast', 'heavy']
+  },
+  'u2-q6': {
+    gapQuestion: 'How much does the lizard weigh? It weighs ______ grams.',
+    options: ['150', '250', '50', '100']
+  },
+  // Unit 3
+  'u3-q3': {
+    gapQuestion: 'Remember to be ______ to everyone.',
+    options: ['kind', 'brave', 'thoughtful', 'selfish']
+  },
+  'u3-q6': {
+    gapQuestion: 'Look at the brown crab on the beach. It is the same color as the ______.',
+    options: ['stick', 'sand', 'grass', 'rock']
+  },
+  // Unit 4
+  'u4-q3': {
+    gapQuestion: 'Last night, I ______ on the phone with my friends for one hour.',
+    options: ['practiced', 'talked', 'helped', 'played']
+  },
+  'u4-q6': {
+    gapQuestion: 'Look at this ancient jar. It was shaped from soft red ______ and baked in fire.',
+    options: ['clay', 'glass', 'stone', 'wood']
+  },
+  // Unit 5
+  'u5-q3': {
+    gapQuestion: 'We held a heavy ball and rolled it to hit the ten pins. We ______ yesterday.',
+    options: ['went bowling', 'saw a parade', 'had a picnic', 'went shopping']
+  },
+  'u5-q6': {
+    gapQuestion: 'Watch out! The T-Rex dinosaur had sharp ______ on its hands to catch food.',
+    options: ['wing', 'tail', 'claw', 'feather']
+  },
+  // Unit 6
+  'u6-q3': {
+    gapQuestion: 'Yesterday evening, I helped my parents. I cooked ______ for them in the kitchen.',
+    options: ['dinner', 'cookies', 'jewelry', 'breakfast']
+  },
+  'u6-q6': {
+    gapQuestion: 'This wall is decorated with thousands of small colored glass tiles. It is an ancient ______.',
+    options: ['photograph', 'mosaic', 'painting', 'sculpture']
+  },
+  // Unit 7
+  'u7-q3': {
+    gapQuestion: 'When I am older, I want to travel to hot places with big trees. I want to ______!',
+    options: ['go to space', 'explore the jungle', 'travel the world', 'fly a helicopter']
+  },
+  'u7-q6': {
+    gapQuestion: 'Astronauts have to take the ______ to leave the Earth and travel into space.',
+    options: ['space shuttle', 'helicopter', 'race car', 'train']
+  },
+  // Unit 8
+  'u8-q3': {
+    gapQuestion: 'To cross the big river, my car must drive onto a giant boat. We are going to take the ______.',
+    options: ['ferry', 'subway', 'taxi', 'gondola']
+  },
+  'u8-q6': {
+    gapQuestion: 'It is very dark inside our tent at night. I need to click the button of this ______ to see things.',
+    options: ['sleeping bag', 'flashlight', 'swimsuit', 'towel']
+  }
+};
 
 interface ShortTestScreenProps {
   session: UserSession;
@@ -35,7 +107,17 @@ export default function ShortTestScreen({ session, onUpdateSession, activeUnit }
   // Load questions for the active unit on mount or unit change
   useEffect(() => {
     const unitQuestions = unitTestsData[activeUnit.id] || [];
-    setQuestions(unitQuestions);
+    const enhancedQuestions = unitQuestions.map(q => {
+      if (q.type === 'listen_complete' && listenCompleteOverrides[q.id]) {
+        return {
+          ...q,
+          question: listenCompleteOverrides[q.id].gapQuestion,
+          options: listenCompleteOverrides[q.id].options
+        };
+      }
+      return q;
+    });
+    setQuestions(enhancedQuestions);
     // Reset test states
     setCurrentIdx(-1);
     setUserAnswers({});
@@ -46,13 +128,7 @@ export default function ShortTestScreen({ session, onUpdateSession, activeUnit }
 
   // Voice player helper
   const speakAudio = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // Stop any playing audio
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.8; // Friendly, slow pace for children
-      window.speechSynthesis.speak(utterance);
-    }
+    playWordAudio(text);
   };
 
   const handleStartTest = () => {
@@ -118,6 +194,20 @@ export default function ShortTestScreen({ session, onUpdateSession, activeUnit }
       .toLowerCase();
   };
 
+  const checkTestSentenceCorrect = (userAns: string, targetAns: string) => {
+    const cleanUser = cleanSentence(userAns);
+    const cleanTarget = cleanSentence(targetAns);
+    if (cleanUser === cleanTarget) return true;
+
+    // Check for "and" swaps (e.g. He likes hiking and climbing vs He likes climbing and hiking)
+    if (cleanUser.includes(' and ') && cleanTarget.includes(' and ')) {
+      const userParts = cleanUser.split(' and ').map(s => s.trim()).sort().join(' and ');
+      const targetParts = cleanTarget.split(' and ').map(s => s.trim()).sort().join(' and ');
+      if (userParts === targetParts) return true;
+    }
+    return false;
+  };
+
   const handleNextQuestion = () => {
     const nextIdx = currentIdx + 1;
     if (nextIdx < questions.length) {
@@ -164,7 +254,7 @@ export default function ShortTestScreen({ session, onUpdateSession, activeUnit }
 
     questions.forEach((q) => {
       const uAns = userAnswers[q.id] || '';
-      const isCorrect = cleanSentence(uAns) === cleanSentence(q.correctAnswer);
+      const isCorrect = checkTestSentenceCorrect(uAns, q.correctAnswer);
       
       if (isCorrect) {
         if (q.section === 'listening') listeningScore++;
@@ -645,7 +735,7 @@ export default function ShortTestScreen({ session, onUpdateSession, activeUnit }
                     <div className="space-y-4">
                       {questions.map((q, idx) => {
                         const uAns = userAnswers[q.id] || '(Trống)';
-                        const isCorrect = cleanSentence(uAns) === cleanSentence(q.correctAnswer);
+                        const isCorrect = checkTestSentenceCorrect(uAns, q.correctAnswer);
                         
                         return (
                           <div key={q.id} className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2.5">
