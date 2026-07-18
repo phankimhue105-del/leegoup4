@@ -1,0 +1,8 @@
+{
+  "name": "Everybody Up 4 - Anh ngữ LeeGo",
+  "description": "Hệ thống học tiếng Anh tương tác Everybody Up 4 dành cho học viên Anh ngữ LeeGo.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
