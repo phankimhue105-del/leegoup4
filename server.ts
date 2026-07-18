@@ -93,18 +93,123 @@ Respond in strict JSON format matching this schema:
     }
   });
 
-  // API Route 2: Real Gemini-powered Speech / Speaking Test Evaluation (Unified Endpoint)
-  app.post("/api/evaluate-speech", async (req, res) => {
+  // API Route: Speech to Text (transcribe)
+  app.post("/api/transcribe", async (req, res) => {
     try {
-      const { history, unitId, transcript, audio, mimeType, question, suggestedAnswer, targetPatterns } = req.body;
+      const { audio, mimeType } = req.body;
+
+      if (!audio) {
+        return res.status(400).json({ error: "Missing audio data" });
+      }
+
+      if (!ai) {
+        return res.json({ useFallback: true, transcript: "" });
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          {
+            inlineData: {
+              mimeType: mimeType || "audio/webm",
+              data: audio
+            }
+          },
+          {
+            text: "You are a precise speech-to-text transcriber for primary school students learning English. Listen to the audio and write down exactly what the speaker says in English. Do not add any punctuation, commentary, corrections, explanations, or assumptions. Output ONLY the English transcript of the spoken words."
+          }
+        ]
+      });
+
+      const transcriptText = response.text ? response.text.trim() : "";
+      return res.json({ transcript: transcriptText });
+    } catch (err) {
+      console.error("Transcription local route error:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+  // API Route: AI Teacher Chat Feedback
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const { history, currentQuestion, nextQuestion } = req.body;
+
+      if (!ai) {
+        return res.json({ 
+          useFallback: true, 
+          reply: "Good job!", 
+          nextQuestion: nextQuestion ? `Câu hỏi tiếp theo:\n\n💬 "${nextQuestion.question}"\n(${nextQuestion.vietnamesePrompt})` : "Chúc mừng con đã hoàn thành bài nói!" 
+        });
+      }
+
+      const studentAnswer = history && history.length > 0 ? history[history.length - 1].answer : "";
+
+      let nextQuestionInstruction = "";
+      if (nextQuestion) {
+        nextQuestionInstruction = `introduce the next question: "${nextQuestion.question}" (with its Vietnamese helper translation: "${nextQuestion.vietnamesePrompt}"). Formulate it nicely so the student knows it's the next question.`;
+      } else {
+        nextQuestionInstruction = `state that this was the last question, congratulate the student warmly in Vietnamese, and say that you are now compiling the final speaking report.`;
+      }
+
+      const promptText = `
+You are a friendly, encouraging AI English Teacher for primary school students studying "Everybody Up 4" (Oxford).
+You are in the middle of a speaking test conversation.
+- Question asked: "${currentQuestion.question}"
+- Target Expected Answer: "${currentQuestion.suggestedAnswer}"
+- Student's spoken response: "${studentAnswer}"
+
+Please review the student's response. Give a short, encouraging teacher comment in Vietnamese (warm and friendly for a kid, maximum 2 sentences) commenting on how they did.
+Then, ${nextQuestionInstruction}
+
+Format the response strictly matching this JSON schema:
+{
+  "reply": "Short encouraging teacher comment in Vietnamese",
+  "nextQuestion": "The next question formulated clearly with its Vietnamese translation, or graduation message if completed"
+}
+`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: promptText,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              reply: { type: Type.STRING },
+              nextQuestion: { type: Type.STRING }
+            },
+            required: ["reply", "nextQuestion"]
+          }
+        }
+      });
+
+      if (response.text) {
+        const result = JSON.parse(response.text);
+        return res.json(result);
+      } else {
+        return res.json({ useFallback: true });
+      }
+    } catch (err) {
+      console.error("Chat local route error:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+
+  // API Route: Comprehensive speaking evaluation
+  app.post("/api/evaluate-speaking", async (req, res) => {
+    try {
+      const { history, unitId } = req.body;
+
+      if (!history || !Array.isArray(history)) {
+        return res.status(400).json({ error: "Missing conversation history" });
+      }
 
       if (!ai) {
         return res.json({ useFallback: true });
       }
 
-      // Case A: Comprehensive evaluation (history of 10 questions provided)
-      if (history && Array.isArray(history)) {
-        const promptText = `
+      const promptText = `
 You are a friendly, expert AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford).
 You have just conducted a 10-question speaking test with a student.
 Here is the entire conversation log:
@@ -117,156 +222,44 @@ Please provide a comprehensive evaluation of the student's performance. Assess:
 4. Vocabulary usage (appropriate word choice matching Everybody Up 4 themes)
 5. Overall communication (meaning transmission, response relevance)
 
-Identify any common spelling/grammar mistakes they made in their answers, and suggest correct versions.
+Identify any common spelling/grammar mistakes they made in their answers, and suggest correct versions in corrections.
 
 Respond in strict JSON matching this schema:
 {
-  "pronunciationScore": integer (50-100),
-  "grammarScore": integer (50-100),
-  "fluencyScore": integer (50-100),
-  "vocabularyScore": integer (50-100),
   "overallScore": integer (50-100),
-  "feedback": "Detailed encouraging feedback in Vietnamese directly to the child",
+  "pronunciation": integer (50-100),
+  "grammar": integer (50-100),
+  "vocabulary": integer (50-100),
+  "fluency": integer (50-100),
   "strengths": ["list of 2-3 strengths in Vietnamese"],
   "weaknesses": ["list of 2-3 areas of improvement in Vietnamese"],
-  "commonMistakes": ["list of incorrect student sentences with explanation of errors in Vietnamese"],
-  "suggestedCorrections": ["list of improved/suggested model answers for their mistakes"]
+  "corrections": ["list of incorrect student sentences with explanation of errors in Vietnamese"],
+  "feedback": "Detailed encouraging feedback in Vietnamese directly to the child"
 }
 `;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: promptText,
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                pronunciationScore: { type: Type.INTEGER },
-                grammarScore: { type: Type.INTEGER },
-                fluencyScore: { type: Type.INTEGER },
-                vocabularyScore: { type: Type.INTEGER },
-                overallScore: { type: Type.INTEGER },
-                feedback: { type: Type.STRING },
-                strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-                weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
-                commonMistakes: { type: Type.ARRAY, items: { type: Type.STRING } },
-                suggestedCorrections: { type: Type.ARRAY, items: { type: Type.STRING } }
-              },
-              required: [
-                "pronunciationScore", "grammarScore", "fluencyScore", "vocabularyScore", 
-                "overallScore", "feedback", "strengths", "weaknesses", "commonMistakes", "suggestedCorrections"
-              ]
-            }
-          }
-        });
-
-        if (response.text) {
-          const result = JSON.parse(response.text);
-          return res.json(result);
-        } else {
-          return res.json({ useFallback: true });
-        }
-      }
-
-      // Case B: Single audio/transcript evaluation
-      if (!transcript && !audio) {
-        return res.status(400).json({ error: "Missing transcript or audio data" });
-      }
-
-      let contents: any[] = [];
-      let schemaProperties: any = {
-        pronunciationScore: { type: Type.INTEGER },
-        grammarScore: { type: Type.INTEGER },
-        fluencyScore: { type: Type.INTEGER },
-        overallScore: { type: Type.INTEGER },
-        feedback: { type: Type.STRING },
-        strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-        weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
-        suggestedPractice: { type: Type.STRING }
-      };
-      let requiredFields = [
-        "pronunciationScore", "grammarScore", "fluencyScore", "overallScore", 
-        "feedback", "strengths", "weaknesses", "suggestedPractice"
-      ];
-
-      if (audio) {
-        // Multimodal input: base64 audio file + text instructions
-        contents = [
-          {
-            inlineData: {
-              mimeType: mimeType || "audio/webm",
-              data: audio
-            }
-          },
-          {
-            text: `You are a friendly AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford).
-Listen to the student's spoken response in the audio to this question:
-- Question asked: "${question}"
-- Target / Expected answer: "${suggestedAnswer}" (Target patterns to look for: ${JSON.stringify(targetPatterns)})
-
-Please transcribe what the student said in the audio and assess three criteria (0-100 score):
-1. pronunciation: clear articulation compared to native standards.
-2. grammar: correct structures and target patterns usage.
-3. fluency: speed and natural flow.
-
-Respond in strict JSON matching this schema:
-{
-  "transcript": "English transcription of what the student said in the audio",
-  "pronunciationScore": integer (50-100),
-  "grammarScore": integer (50-100),
-  "fluencyScore": integer (50-100),
-  "overallScore": integer (50-100),
-  "feedback": "Friendly feedback in Vietnamese directly to the child",
-  "strengths": ["list of strengths in Vietnamese"],
-  "weaknesses": ["list of areas to improve in Vietnamese"],
-  "suggestedPractice": "Practical practice tip in Vietnamese"
-}
-`
-          }
-        ];
-        schemaProperties.transcript = { type: Type.STRING };
-        requiredFields.push("transcript");
-      } else {
-        // Text-only input (fallback or typed answer)
-        contents = [
-          {
-            text: `You are a friendly AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford).
-Evaluate this spoken response:
-- Question asked: "${question}"
-- Expected Answer / Patterns: "${suggestedAnswer}" (Target patterns: ${JSON.stringify(targetPatterns)})
-- Student's actual spoken transcript: "${transcript}"
-
-Assess three criteria (0-100 score):
-1. pronunciation: clear articulation compared to native standards.
-2. grammar: correct structures and target patterns usage.
-3. fluency: speed and natural flow.
-
-Respond in strict JSON matching this schema:
-{
-  "pronunciationScore": integer (50-100),
-  "grammarScore": integer (50-100),
-  "fluencyScore": integer (50-100),
-  "overallScore": integer (50-100),
-  "feedback": "Friendly feedback in Vietnamese directly to the child",
-  "strengths": ["list of strengths in Vietnamese"],
-  "weaknesses": ["list of areas to improve in Vietnamese"],
-  "suggestedPractice": "Practical practice tip in Vietnamese"
-}
-`
-          }
-        ];
-      }
-
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: contents,
+        contents: promptText,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
-            properties: schemaProperties,
-            required: requiredFields
+            properties: {
+              overallScore: { type: Type.INTEGER },
+              pronunciation: { type: Type.INTEGER },
+              grammar: { type: Type.INTEGER },
+              vocabulary: { type: Type.INTEGER },
+              fluency: { type: Type.INTEGER },
+              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+              weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+              corrections: { type: Type.ARRAY, items: { type: Type.STRING } },
+              feedback: { type: Type.STRING }
+            },
+            required: [
+              "overallScore", "pronunciation", "grammar", "vocabulary", "fluency", 
+              "strengths", "weaknesses", "corrections", "feedback"
+            ]
           }
         }
       });
@@ -278,8 +271,8 @@ Respond in strict JSON matching this schema:
         return res.json({ useFallback: true });
       }
     } catch (err) {
-      console.error("Gemini evaluate-speech error:", err);
-      return res.json({ useFallback: true });
+      console.error("Gemini local evaluate-speaking error:", err);
+      return res.status(500).json({ error: "Internal Server Error" });
     }
   });
 
