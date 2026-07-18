@@ -10,9 +10,8 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 /**
  * Universal speech player to fix iPhone (iOS Safari/Chrome) audio issues.
- * Prioritizes local MP3 playback using HTMLAudioElement.
- * Falls back to Web Speech API (SpeechSynthesis) with forced English voice selection.
- * Does not depend on third-party online pronunciation services.
+ * Uses native Web Speech API (SpeechSynthesis) with forced English voice selection.
+ * Does not try to load local MP3 files or depend on third-party online services.
  */
 export const playWordAudio = (text: string): Promise<void> => {
   return new Promise((resolve) => {
@@ -27,67 +26,38 @@ export const playWordAudio = (text: string): Promise<void> => {
       return;
     }
 
-    // 2. Derive local MP3 path
-    const localUrl = `/audio/${encodeURIComponent(cleanedText.toLowerCase().replace(/\s+/g, '_'))}.mp3`;
-    const audio = new Audio();
-    let hasFailed = false;
-
-    // Direct listener for play failure
-    audio.addEventListener('error', (e) => {
-      if (!hasFailed) {
-        hasFailed = true;
-        console.error(`[playWordAudio] Local MP3 not found or failed to load at ${localUrl}. Falling back to native SpeechSynthesis. Error details:`, audio.error || e);
-        playTTSFallback(cleanedText, resolve);
-      }
-    });
-
-    audio.src = localUrl;
-    audio.preload = 'auto';
-
-    audio.play()
-      .then(() => {
-        audio.onended = () => resolve();
-      })
-      .catch((err) => {
-        if (!hasFailed) {
-          hasFailed = true;
-          console.error(`[playWordAudio] Play promise rejected for ${localUrl}. Falling back to native SpeechSynthesis. Error details:`, err);
-          playTTSFallback(cleanedText, resolve);
-        }
-      });
-  });
-};
-
-const playTTSFallback = (text: string, callback: () => void) => {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-    callback();
-    return;
-  }
-
-  try {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.82; // Kid-friendly pace
-
-    // iOS voice lookup: search specifically for an English voice
-    const voices = window.speechSynthesis.getVoices();
-    const enVoice = voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('google')) ||
-                    voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('samantha')) ||
-                    voices.find(v => v.lang.startsWith('en-US')) ||
-                    voices.find(v => v.lang.startsWith('en-'));
-    if (enVoice) {
-      utterance.voice = enVoice;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      console.warn("[playWordAudio] SpeechSynthesis is not supported in this browser.");
+      resolve();
+      return;
     }
 
-    utterance.onend = () => callback();
-    utterance.onerror = (e) => {
-      console.error("[playWordAudio] SpeechSynthesis fallback utterance error:", e);
-      callback();
-    };
-    window.speechSynthesis.speak(utterance);
-  } catch (err) {
-    console.error("SpeechSynthesis fallback failed:", err);
-    callback();
-  }
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(cleanedText);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.82; // Kid-friendly pace
+
+      // English voice lookup: search specifically for an English voice
+      const voices = window.speechSynthesis.getVoices();
+      const enVoice = voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('google')) ||
+                      voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('samantha')) ||
+                      voices.find(v => v.lang.startsWith('en-US')) ||
+                      voices.find(v => v.lang.startsWith('en-'));
+      if (enVoice) {
+        utterance.voice = enVoice;
+      }
+
+      utterance.onend = () => resolve();
+      utterance.onerror = (e) => {
+        console.error("[playWordAudio] SpeechSynthesis utterance error:", e);
+        resolve();
+      };
+      
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.error("SpeechSynthesis failed:", err);
+      resolve();
+    }
+  });
 };
