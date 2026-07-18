@@ -665,46 +665,43 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     }
   };
 
-  // Process audio recording via Gemini multimodal endpoint
+  // Process audio recording via transcribe and chat endpoints
   const processAudioAnswer = async (audioBase64: string, mimeType: string) => {
     setIsProcessing(true);
 
     const currentQ = questions[currentQuestionIndex];
     let transcriptText = "";
-    let usedAIEval = false;
-
+    
+    console.log("Uploading audio...");
+    
     try {
-      const response = await fetch("/api/evaluate-speech", {
+      const response = await fetch("/api/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           audio: audioBase64,
-          mimeType: mimeType,
-          question: currentQ.question,
-          suggestedAnswer: currentQ.suggestedAnswer,
-          targetPatterns: currentQ.targetPatterns
+          mimeType: mimeType
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (data && data.useFallback !== true) {
-          transcriptText = data.transcript || "";
-          usedAIEval = true;
-        }
+        console.log("Transcript received:", data);
+        transcriptText = data.transcript || "";
       }
     } catch (err) {
-      console.error("Multimodal speech API evaluation error:", err);
+      console.error("Transcription API error:", err);
     }
 
-    // Require real transcribed input - NEVER auto-insert suggested answer!
-    if (!usedAIEval || !transcriptText.trim()) {
-      console.warn("[AISpeakingCoach] Audio transcription is empty or API evaluation failed. Stopping pipeline.");
+    // Handle empty/failed transcript
+    if (!transcriptText.trim()) {
+      console.warn("[AISpeakingCoach] Transcription is empty or failed. Staying on current question.");
       setIsProcessing(false);
-      alert("Thầy cô AI chưa nghe rõ câu nói của con. Con hãy bấm nút Micro để nói lại hoặc gõ câu trả lời vào ô phía dưới nhé! (Please record or type your answer.)");
+      alert("I couldn't hear you clearly. Please try again.");
       return;
     }
 
+    // Add student's message to chat log
     const studentMsg: ChatMessage = {
       id: `student-${currentQuestionIndex}`,
       sender: 'student',
@@ -717,29 +714,88 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     const updatedLog = [...answersLog, answerItem];
     setAnswersLog(updatedLog);
 
-    setTimeout(() => {
-      const nextIdx = currentQuestionIndex + 1;
-      if (nextIdx < questions.length) {
-        setCurrentQuestionIndex(nextIdx);
-        const nextQ = questions[nextIdx];
+    // Call AI Teacher endpoint `/api/chat`
+    try {
+      const nextQ = currentQuestionIndex + 1 < questions.length ? questions[currentQuestionIndex + 1] : null;
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: updatedLog,
+          currentQuestion: currentQ,
+          nextQuestion: nextQ
+        })
+      });
+
+      if (response.ok) {
+        const chatData = await response.json();
+        console.log("API response:", chatData);
         
-        const nextQMsg: ChatMessage = {
-          id: `ai-q-${nextIdx}`,
-          sender: 'ai',
-          text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        
-        setChatLog(prev => [...prev, nextQMsg]);
-        speakText(nextQ.question);
-        setTranscript('');
-        setSimulationText('');
-        setIsProcessing(false);
-        startTimeRef.current = Date.now();
+        // Display teacher reply comment in chat
+        if (chatData.reply) {
+          const teacherReplyMsg: ChatMessage = {
+            id: `ai-reply-${currentQuestionIndex}`,
+            sender: 'ai',
+            text: chatData.reply,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          setChatLog(prev => [...prev, teacherReplyMsg]);
+        }
+
+        // Proceed to next question or evaluate
+        setTimeout(() => {
+          const nextIdx = currentQuestionIndex + 1;
+          if (nextIdx < questions.length) {
+            setCurrentQuestionIndex(nextIdx);
+            
+            const nextQMsg: ChatMessage = {
+              id: `ai-q-${nextIdx}`,
+              sender: 'ai',
+              text: chatData.nextQuestion || `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${questions[nextIdx].question}"\n(${questions[nextIdx].vietnamesePrompt})`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            
+            setChatLog(prev => [...prev, nextQMsg]);
+            speakText(questions[nextIdx].question);
+            setTranscript('');
+            setSimulationText('');
+            setIsProcessing(false);
+            startTimeRef.current = Date.now();
+          } else {
+            runComprehensiveEvaluation(updatedLog);
+          }
+        }, 1500);
+
       } else {
-        runComprehensiveEvaluation(updatedLog);
+        throw new Error("Chat API failed");
       }
-    }, 1500);
+    } catch (err) {
+      console.error("AI Teacher chat generation error:", err);
+      // Fallback in case of API issues
+      setTimeout(() => {
+        const nextIdx = currentQuestionIndex + 1;
+        if (nextIdx < questions.length) {
+          setCurrentQuestionIndex(nextIdx);
+          const nextQ = questions[nextIdx];
+          
+          const nextQMsg: ChatMessage = {
+            id: `ai-q-${nextIdx}`,
+            sender: 'ai',
+            text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          
+          setChatLog(prev => [...prev, nextQMsg]);
+          speakText(nextQ.question);
+          setTranscript('');
+          setSimulationText('');
+          setIsProcessing(false);
+          startTimeRef.current = Date.now();
+        } else {
+          runComprehensiveEvaluation(updatedLog);
+        }
+      }, 1500);
+    }
   };
 
   // Process and grade user speech (For text/keyboard fallback)
@@ -770,30 +826,85 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     const updatedLog = [...answersLog, answerItem];
     setAnswersLog(updatedLog);
 
-    // Transition directly to the next question
-    setTimeout(() => {
-      const nextIdx = currentQuestionIndex + 1;
-      if (nextIdx < questions.length) {
-        setCurrentQuestionIndex(nextIdx);
-        const nextQ = questions[nextIdx];
-        
-        const nextQMsg: ChatMessage = {
-          id: `ai-q-${nextIdx}`,
-          sender: 'ai',
-          text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        
-        setChatLog(prev => [...prev, nextQMsg]);
-        speakText(nextQ.question);
-        setTranscript('');
-        setSimulationText('');
-        setIsProcessing(false);
-        startTimeRef.current = Date.now();
+    // Call AI Teacher endpoint `/api/chat`
+    try {
+      const nextQ = currentQuestionIndex + 1 < questions.length ? questions[currentQuestionIndex + 1] : null;
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: updatedLog,
+          currentQuestion: currentQ,
+          nextQuestion: nextQ
+        })
+      });
+
+      if (response.ok) {
+        const chatData = await response.json();
+        console.log("API response:", chatData);
+
+        if (chatData.reply) {
+          const teacherReplyMsg: ChatMessage = {
+            id: `ai-reply-${currentQuestionIndex}`,
+            sender: 'ai',
+            text: chatData.reply,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          setChatLog(prev => [...prev, teacherReplyMsg]);
+        }
+
+        setTimeout(() => {
+          const nextIdx = currentQuestionIndex + 1;
+          if (nextIdx < questions.length) {
+            setCurrentQuestionIndex(nextIdx);
+
+            const nextQMsg: ChatMessage = {
+              id: `ai-q-${nextIdx}`,
+              sender: 'ai',
+              text: chatData.nextQuestion || `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${questions[nextIdx].question}"\n(${questions[nextIdx].vietnamesePrompt})`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            setChatLog(prev => [...prev, nextQMsg]);
+            speakText(questions[nextIdx].question);
+            setTranscript('');
+            setSimulationText('');
+            setIsProcessing(false);
+            startTimeRef.current = Date.now();
+          } else {
+            runComprehensiveEvaluation(updatedLog);
+          }
+        }, 1500);
       } else {
-        runComprehensiveEvaluation(updatedLog);
+        throw new Error("Chat API failed");
       }
-    }, 1500);
+    } catch (err) {
+      console.error("AI Teacher chat generation error:", err);
+      // Fallback
+      setTimeout(() => {
+        const nextIdx = currentQuestionIndex + 1;
+        if (nextIdx < questions.length) {
+          setCurrentQuestionIndex(nextIdx);
+          const nextQ = questions[nextIdx];
+
+          const nextQMsg: ChatMessage = {
+            id: `ai-q-${nextIdx}`,
+            sender: 'ai',
+            text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+
+          setChatLog(prev => [...prev, nextQMsg]);
+          speakText(nextQ.question);
+          setTranscript('');
+          setSimulationText('');
+          setIsProcessing(false);
+          startTimeRef.current = Date.now();
+        } else {
+          runComprehensiveEvaluation(updatedLog);
+        }
+      }, 1500);
+    }
   };
 
   // Single comprehensive AI evaluation at the end of the conversation
@@ -821,7 +932,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     let usedAIEval = false;
 
     try {
-      const response = await fetch("/api/evaluate-speech", {
+      const response = await fetch("/api/evaluate-speaking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -832,17 +943,17 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
       if (response.ok) {
         const data = await response.json();
+        console.log("Evaluation response:", data);
         if (data && data.useFallback !== true) {
-          pronunciationScore = data.pronunciationScore || 85;
-          grammarScore = data.grammarScore || 85;
-          fluencyScore = data.fluencyScore || 85;
-          vocabularyScore = data.vocabularyScore || 85;
+          pronunciationScore = data.pronunciation || 85;
+          grammarScore = data.grammar || 85;
+          fluencyScore = data.fluency || 85;
+          vocabularyScore = data.vocabulary || 85;
           overallScore = data.overallScore || 85;
           feedbackText = data.feedback || "";
           strengths = data.strengths || [];
           weaknesses = data.weaknesses || [];
-          commonMistakes = data.commonMistakes || [];
-          suggestedCorrections = data.suggestedCorrections || [];
+          commonMistakes = data.corrections || [];
           usedAIEval = true;
         }
       }
@@ -855,7 +966,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       strengths = ["Phát âm rõ ràng, tự tin", "Trả lời đầy đủ các câu hỏi"];
       weaknesses = ["Đôi chỗ phát âm chưa đều", "Cần luyện tập thêm một số từ vựng chủ đề"];
       commonMistakes = ["Nói nhanh đôi chỗ bị vấp"];
-      suggestedCorrections = ["Nói với tốc độ vừa phải và ngắt nghỉ đúng chỗ"];
     }
 
     // Format the final report message
@@ -881,14 +991,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     }
 
     if (commonMistakes.length > 0) {
-      reportText += `❌ **Lỗi thường gặp (Common Mistakes):**\n`;
+      reportText += `❌ **Lỗi thường gặp (Common Mistakes) / Gợi ý sửa:**\n`;
       commonMistakes.forEach(m => { reportText += `• ${m}\n`; });
       reportText += `\n`;
-    }
-
-    if (suggestedCorrections.length > 0) {
-      reportText += `👉 **Gợi ý mẫu câu đúng (Suggested Corrections):**\n`;
-      suggestedCorrections.forEach(c => { reportText += `• ${c}\n`; });
     }
 
     const reportMsg: ChatMessage = {
