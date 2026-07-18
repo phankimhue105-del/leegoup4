@@ -12,6 +12,7 @@ import {
   HelpCircle, Heart, Star, AlertTriangle, Lightbulb, 
   RotateCcw, ArrowRight, Check, X, Brain, ShieldCheck
 } from 'lucide-react';
+import { playWordAudio } from '../lib/audioHelper';
 
 interface GrammarScreenProps {
   session: UserSession;
@@ -72,13 +73,7 @@ export default function GrammarScreen({ session, onUpdateSession, activeUnit, ac
 
   // Text to Speech voice standard
   const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // cancel playing voices
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.85; // kid-friendly rate
-      window.speechSynthesis.speak(utterance);
-    }
+    playWordAudio(text);
   };
 
   // Scrambled word bubble click handler
