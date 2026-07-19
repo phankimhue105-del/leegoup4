@@ -130,285 +130,89 @@ const SPEAKING_QUESTIONS_DB: Record<string, SpeakingQuestion[]> = {
     }
   ],
   'unit-2': [
-    // Warmups (3)
-    {
-      id: 1,
-      question: "Nice to meet you! What is your name?",
-      vietnamesePrompt: "Rất vui được gặp con! Tên con là gì?",
-      type: 'warmup',
-      targetPatterns: ["my name is", "i'm", "i am"],
-      suggestedAnswer: "My name is Jack."
-    },
-    {
-      id: 2,
-      question: "How are you today?",
-      vietnamesePrompt: "Hôm nay con khỏe không?",
-      type: 'warmup',
-      targetPatterns: ["i am good", "i'm good", "i'm fine", "great", "happy"],
-      suggestedAnswer: "I'm great, thank you!"
-    },
-    {
-      id: 3,
-      question: "What is your favorite animal?",
-      vietnamesePrompt: "Con thích con vật nào nhất?",
-      type: 'warmup',
-      targetPatterns: ["i like", "my favorite animal is", "panda", "dolphin", "whale", "lion"],
-      suggestedAnswer: "My favorite animal is the dolphin."
-    },
-    // Topics (7)
-    {
-      id: 4,
-      question: "Which animal is bigger, a hippopotamus or a panda?",
-      vietnamesePrompt: "Con vật nào to hơn, hà mã hay gấu trúc?",
-      type: 'topic',
-      targetPatterns: ["hippopotamus is bigger", "bigger than the panda", "hippopotamus"],
-      suggestedAnswer: "The hippopotamus is bigger than the panda."
-    },
-    {
-      id: 5,
-      question: "Which one is the smallest: a butterfly, a caterpillar, or a bee?",
-      vietnamesePrompt: "Con nào nhỏ nhất trong ba loài: bướm, sâu bướm, hay ong?",
-      type: 'topic',
-      targetPatterns: ["bee is the smallest", "the bee", "smallest"],
-      suggestedAnswer: "The bee is the smallest."
-    },
-    {
-      id: 6,
-      question: "Is an eel as long as a seal?",
-      vietnamesePrompt: "Con lươn có dài bằng con hải cẩu không?",
-      type: 'topic',
-      targetPatterns: ["isn't as long as", "is not as long", "no, it isn't", "shorter"],
-      suggestedAnswer: "No, the eel isn't as long as the seal."
-    },
-    {
-      id: 7,
-      question: "Is a dolphin as friendly as a shark?",
-      vietnamesePrompt: "Con cá heo có thân thiện bằng con cá mập không?",
-      type: 'topic',
-      targetPatterns: ["dolphin is friendlier", "not as friendly", "no, it isn't"],
-      suggestedAnswer: "No, a shark isn't as friendly as a dolphin."
-    },
-    {
-      id: 8,
-      question: "How much does the lizard weigh?",
-      vietnamesePrompt: "Con thằn lằn này nặng bao nhiêu gam?",
-      type: 'topic',
-      targetPatterns: ["weighs", "grams", "150 grams", "weigh"],
-      suggestedAnswer: "It weighs 150 grams."
-    },
-    {
-      id: 9,
-      question: "How long is the big dinosaur lizard?",
-      vietnamesePrompt: "Con thằn lằn khổng lồ này dài bao nhiêu mét?",
-      type: 'topic',
-      targetPatterns: ["meters long", "3 meters", "it's 3 meters"],
-      suggestedAnswer: "It's 3 meters long."
-    },
-    {
-      id: 10,
-      question: "When you choose a cap, which one would you like?",
-      vietnamesePrompt: "Khi chọn mũ lưỡi trai, con thích cái nào nhất?",
-      type: 'topic',
-      targetPatterns: ["i'd like the", "i would like", "longest one", "best one"],
-      suggestedAnswer: "I'd like the longest one, please."
-    }
+    { id: 1, question: "Nice to meet you! What is your name?", vietnamesePrompt: "Rất vui được gặp con! Tên con là gì?", type: 'warmup', targetPatterns: ["my name is", "i'm"], suggestedAnswer: "My name is Jack." },
+    { id: 2, question: "How are you today?", vietnamesePrompt: "Hôm nay con khỏe không?", type: 'warmup', targetPatterns: ["i am good", "i'm good", "i'm fine"], suggestedAnswer: "I'm great, thank you!" },
+    { id: 3, question: "What is your favorite animal?", vietnamesePrompt: "Con thích con vật nào nhất?", type: 'warmup', targetPatterns: ["i like", "my favorite animal is"], suggestedAnswer: "My favorite animal is the dolphin." },
+    { id: 4, question: "Which animal is bigger, a hippopotamus or a panda?", vietnamesePrompt: "Con vật nào to hơn, hà mã hay gấu trúc?", type: 'topic', targetPatterns: ["hippopotamus is bigger", "bigger than the panda"], suggestedAnswer: "The hippopotamus is bigger than the panda." },
+    { id: 5, question: "Which one is the smallest: a butterfly, a caterpillar, or a bee?", vietnamesePrompt: "Con nào nhỏ nhất trong ba loài: bướm, sâu bướm, hay ong?", type: 'topic', targetPatterns: ["bee is the smallest", "the bee"], suggestedAnswer: "The bee is the smallest." },
+    { id: 6, question: "Is an eel as long as a seal?", vietnamesePrompt: "Con lươn có dài bằng con hải cẩu không?", type: 'topic', targetPatterns: ["isn't as long as", "is not as long"], suggestedAnswer: "No, the eel isn't as long as the seal." },
+    { id: 7, question: "Is a dolphin as friendly as a shark?", vietnamesePrompt: "Con cá heo có thân thiện bằng con cá mập không?", type: 'topic', targetPatterns: ["dolphin is friendlier", "not as friendly"], suggestedAnswer: "No, a shark isn't as friendly as a dolphin." },
+    { id: 8, question: "How much does the lizard weigh?", vietnamesePrompt: "Con thằn lằn này nặng bao nhiêu gam?", type: 'topic', targetPatterns: ["weighs", "grams"], suggestedAnswer: "It weighs 150 grams." },
+    { id: 9, question: "How long is the big dinosaur lizard?", vietnamesePrompt: "Con thằn lằn khổng lồ này dài bao nhiêu mét?", type: 'topic', targetPatterns: ["meters long", "3 meters"], suggestedAnswer: "It's 3 meters long." },
+    { id: 10, question: "When you choose a cap, which one would you like?", vietnamesePrompt: "Khi chọn mũ lưỡi trai, con thích cái nào nhất?", type: 'topic', targetPatterns: ["i'd like the", "longest one"], suggestedAnswer: "I'd like the longest one, please." }
   ],
   'unit-3': [
-    // Warmups (3)
-    {
-      id: 1,
-      question: "Hello! What is your name?",
-      vietnamesePrompt: "Xin chào! Con tên là gì nhỉ?",
-      type: 'warmup',
-      targetPatterns: ["my name is", "i'm", "i am"],
-      suggestedAnswer: "My name is Sophia."
-    },
-    {
-      id: 2,
-      question: "Where are you from?",
-      vietnamesePrompt: "Con đến từ đâu?",
-      type: 'warmup',
-      targetPatterns: ["i am from", "i'm from", "vietnam", "hanoi"],
-      suggestedAnswer: "I'm from Vietnam."
-    },
-    {
-      id: 3,
-      question: "What color do you like most?",
-      vietnamesePrompt: "Con thích màu nào nhất?",
-      type: 'warmup',
-      targetPatterns: ["i like blue", "i like red", "i like pink", "my favorite color is"],
-      suggestedAnswer: "I like blue and yellow."
-    },
-    // Topics (7)
-    {
-      id: 4,
-      question: "What does your brother look like?",
-      vietnamesePrompt: "Anh/em trai của con trông như thế nào?",
-      type: 'topic',
-      targetPatterns: ["he has", "short hair", "black hair", "brown eyes", "straight hair"],
-      suggestedAnswer: "He has short, straight, black hair and brown eyes."
-    },
-    {
-      id: 5,
-      question: "Do you have straight hair or curly hair?",
-      vietnamesePrompt: "Tóc con thẳng hay tóc xoăn?",
-      type: 'topic',
-      targetPatterns: ["i have straight", "i have curly", "wavy hair", "my hair is"],
-      suggestedAnswer: "I have straight black hair."
-    },
-    {
-      id: 6,
-      question: "What do your favorite sunglasses look like?",
-      vietnamesePrompt: "Cặp kính râm yêu thích của con trông như thế nào?",
-      type: 'topic',
-      targetPatterns: ["they are", "they're", "new and black", "cool", "beautiful"],
-      suggestedAnswer: "They're new and black."
-    },
-    {
-      id: 7,
-      question: "Which accessory does she want to wear to the party?",
-      vietnamesePrompt: "Phụ kiện nào cô ấy muốn đeo đến bữa tiệc?",
-      type: 'topic',
-      targetPatterns: ["wants to wear", "wear a watch", "necklace", "earrings", "belt"],
-      suggestedAnswer: "She wants to wear the beautiful necklace."
-    },
-    {
-      id: 8,
-      question: "What do you say to wish your friends good luck before a school play?",
-      vietnamesePrompt: "Con sẽ nói gì để chúc các bạn may mắn trước buổi diễn kịch?",
-      type: 'topic',
-      targetPatterns: ["good luck", "with the play", "good luck with"],
-      suggestedAnswer: "Good luck with the play!"
-    },
-    {
-      id: 9,
-      question: "Do you want to wear gloves or a watch when going outside?",
-      vietnamesePrompt: "Con muốn đeo găng tay hay đồng hồ khi ra ngoài?",
-      type: 'topic',
-      targetPatterns: ["i want to wear", "wear gloves", "wear a watch", "gloves", "watch"],
-      suggestedAnswer: "I want to wear black gloves."
-    },
-    {
-      id: 10,
-      question: "Tell me, how does a caterpillar look like a stick for camouflage?",
-      vietnamesePrompt: "Hãy cho cô biết, sâu bướm làm sao trông giống cái cành cây để ngụy trang?",
-      type: 'topic',
-      targetPatterns: ["same color", "same shape", "color as the stick", "shape as the stick"],
-      suggestedAnswer: "The caterpillar is the same color and shape as the stick."
-    }
+    { id: 1, question: "Hello! What is your name?", vietnamesePrompt: "Xin chào! Con tên là gì nhỉ?", type: 'warmup', targetPatterns: ["my name is", "i'm"], suggestedAnswer: "My name is Sophia." },
+    { id: 2, question: "Where are you from?", vietnamesePrompt: "Con đến từ đâu?", type: 'warmup', targetPatterns: ["i am from", "i'm from"], suggestedAnswer: "I'm from Vietnam." },
+    { id: 3, question: "What color do you like most?", vietnamesePrompt: "Con thích màu nào nhất?", type: 'warmup', targetPatterns: ["i like blue", "i like red"], suggestedAnswer: "I like blue and yellow." },
+    { id: 4, question: "What does your brother look like?", vietnamesePrompt: "Anh/em trai của con trông như thế nào?", type: 'topic', targetPatterns: ["he has", "short hair", "black hair"], suggestedAnswer: "He has short, straight, black hair and brown eyes." },
+    { id: 5, question: "Do you have straight hair or curly hair?", vietnamesePrompt: "Tóc con thẳng hay tóc xoăn?", type: 'topic', targetPatterns: ["i have straight", "i have curly"], suggestedAnswer: "I have straight black hair." },
+    { id: 6, question: "What do your favorite sunglasses look like?", vietnamesePrompt: "Cặp kính râm yêu thích của con trông như thế nào?", type: 'topic', targetPatterns: ["they are", "they're"], suggestedAnswer: "They're new and black." },
+    { id: 7, question: "Which accessory does she want to wear to the party?", vietnamesePrompt: "Phụ kiện nào cô ấy muốn đeo đến bữa tiệc?", type: 'topic', targetPatterns: ["wants to wear", "necklace"], suggestedAnswer: "She wants to wear the beautiful necklace." },
+    { id: 8, question: "What do you say to wish your friends good luck before a school play?", vietnamesePrompt: "Con sẽ nói gì để chúc các bạn may mắn trước buổi diễn kịch?", type: 'topic', targetPatterns: ["good luck", "with the play"], suggestedAnswer: "Good luck with the play!" },
+    { id: 9, question: "Do you want to wear gloves or a watch when going outside?", vietnamesePrompt: "Con muốn đeo găng tay hay đồng hồ khi ra ngoài?", type: 'topic', targetPatterns: ["i want to wear", "gloves", "watch"], suggestedAnswer: "I want to wear black gloves." },
+    { id: 10, question: "Tell me, how does a caterpillar look like a stick for camouflage?", vietnamesePrompt: "Hãy cho cô biết, sâu bướm làm sao trông giống cái cành cây để ngụy trang?", type: 'topic', targetPatterns: ["same color", "same shape"], suggestedAnswer: "The caterpillar is the same color and shape as the stick." }
   ],
   'unit-4': [
     { id: 1, question: "Hello! What is your name?", vietnamesePrompt: "Tên của con là gì nhỉ?", type: 'warmup', targetPatterns: ["my name is", "i'm"], suggestedAnswer: "My name is John." },
     { id: 2, question: "How old are you?", vietnamesePrompt: "Con mấy tuổi rồi?", type: 'warmup', targetPatterns: ["i am", "i'm"], suggestedAnswer: "I'm ten years old." },
-    { id: 3, question: "What is your favorite sport?", vietnamesePrompt: "Môn thể thao yêu thích của con là gì?", type: 'warmup', targetPatterns: ["i like", "my favorite sport is", "soccer", "basketball", "tennis"], suggestedAnswer: "I like playing basketball." },
-    { id: 4, question: "What did you do yesterday?", vietnamesePrompt: "Hôm qua con đã làm gì?", type: 'topic', targetPatterns: ["i played", "i watched", "i helped", "yesterday"], suggestedAnswer: "I played baseball yesterday." },
-    { id: 5, question: "Did you play baseball or tennis yesterday?", vietnamesePrompt: "Hôm qua con đã chơi bóng chày hay quần vợt?", type: 'topic', targetPatterns: ["i played baseball", "i played tennis", "yesterday", "yes, i did", "no, i didn't"], suggestedAnswer: "I played baseball yesterday." },
-    { id: 6, question: "What did your best friend do last weekend?", vietnamesePrompt: "Bạn thân của con đã làm gì cuối tuần trước?", type: 'topic', targetPatterns: ["he played", "she played", "practiced the piano", "used the computer", "visited my friend"], suggestedAnswer: "She practiced the piano last weekend." },
-    { id: 7, question: "Did you use the computer on Monday?", vietnamesePrompt: "Con có sử dụng máy tính vào thứ Hai không?", type: 'topic', targetPatterns: ["yes, i did", "no, i didn't", "i used the computer", "i didn't use"], suggestedAnswer: "Yes, I did. I used the computer for school." },
-    { id: 8, question: "If your friend cannot find their glove, what can you say?", vietnamesePrompt: "Nếu bạn của con không tìm thấy găng tay, con có thể nói gì?", type: 'topic', targetPatterns: ["don't worry", "borrow mine", "you can borrow"], suggestedAnswer: "Don't worry. You can borrow mine." },
-    { id: 9, question: "What did they use to make homes in ancient Rome?", vietnamesePrompt: "Người La Mã cổ đại đã dùng vật liệu gì để xây nhà?", type: 'topic', targetPatterns: ["they used", "stone", "clay", "wood"], suggestedAnswer: "They used stone and clay to make homes." },
-    { id: 10, question: "Did they use metal to make cups in Rome?", vietnamesePrompt: "Họ có dùng kim loại để làm cốc ở La Mã không?", type: 'topic', targetPatterns: ["yes, they did", "no, they didn't", "they used metal"], suggestedAnswer: "Yes, they did. They used metal." }
+    { id: 3, question: "What is your favorite sport?", vietnamesePrompt: "Môn thể thao yêu thích của con là gì?", type: 'warmup', targetPatterns: ["i like", "my favorite sport is"], suggestedAnswer: "I like playing basketball." },
+    { id: 4, question: "What did you do yesterday?", vietnamesePrompt: "Hôm qua con đã làm gì?", type: 'topic', targetPatterns: ["i played", "i watched"], suggestedAnswer: "I played baseball yesterday." },
+    { id: 5, question: "Did you play baseball or tennis yesterday?", vietnamesePrompt: "Hôm qua con đã chơi bóng chày hay quần vợt?", type: 'topic', targetPatterns: ["i played baseball", "i played tennis"], suggestedAnswer: "I played baseball yesterday." },
+    { id: 6, question: "What did your best friend do last weekend?", vietnamesePrompt: "Bạn thân của con đã làm gì cuối tuần trước?", type: 'topic', targetPatterns: ["he played", "she played"], suggestedAnswer: "She practiced the piano last weekend." },
+    { id: 7, question: "Did you use the computer on Monday?", vietnamesePrompt: "Con có sử dụng máy tính vào thứ Hai không?", type: 'topic', targetPatterns: ["yes, i did", "no, i didn't"], suggestedAnswer: "Yes, I did. I used the computer for school." },
+    { id: 8, question: "If your friend cannot find their glove, what can you say?", vietnamesePrompt: "Nếu bạn của con không tìm thấy găng tay, con có thể nói gì?", type: 'topic', targetPatterns: ["don't worry", "borrow mine"], suggestedAnswer: "Don't worry. You can borrow mine." },
+    { id: 9, question: "What did they use to make homes in ancient Rome?", vietnamesePrompt: "Người La Mã cổ đại đã dùng vật liệu gì để xây nhà?", type: 'topic', targetPatterns: ["they used", "stone", "clay"], suggestedAnswer: "They used stone and clay to make homes." },
+    { id: 10, question: "Did they use metal to make cups in Rome?", vietnamesePrompt: "Họ có dùng kim loại để làm cốc ở La Mã không?", type: 'topic', targetPatterns: ["yes, they did", "no, they didn't"], suggestedAnswer: "Yes, they did. They used metal." }
   ],
   'unit-5': [
     { id: 1, question: "Hi! What's your name?", vietnamesePrompt: "Chào con! Tên con là gì?", type: 'warmup', targetPatterns: ["my name is", "i'm"], suggestedAnswer: "My name is Lucy." },
-    { id: 2, question: "How are you today?", vietnamesePrompt: "Hôm nay con khỏe không?", type: 'warmup', targetPatterns: ["i'm good", "fine", "happy"], suggestedAnswer: "I'm very well, thank you!" },
-    { id: 3, question: "What is your favorite food?", vietnamesePrompt: "Món ăn yêu thích của con là gì?", type: 'warmup', targetPatterns: ["i like", "favorite food is", "pizza", "noodles", "sushi"], suggestedAnswer: "My favorite food is noodles." },
-    { id: 4, question: "What did you eat for lunch yesterday?", vietnamesePrompt: "Trưa hôm qua con đã ăn món gì?", type: 'topic', targetPatterns: ["i ate", "noodles", "curry", "sushi", "ate sushi", "ate noodles"], suggestedAnswer: "I ate sushi and curry." },
-    { id: 5, question: "What did you drink with your dinner last night?", vietnamesePrompt: "Tối qua con uống nước gì cùng bữa tối?", type: 'topic', targetPatterns: ["i drank", "lemonade", "grape juice", "tea", "water"], suggestedAnswer: "I drank fresh lemonade." },
-    { id: 6, question: "When did she go bowling?", vietnamesePrompt: "Cô ấy đã đi chơi bowling khi nào?", type: 'topic', targetPatterns: ["went bowling", "yesterday", "last week", "she went"], suggestedAnswer: "She went bowling yesterday." },
-    { id: 7, question: "Did you see a parade or have a picnic last weekend?", vietnamesePrompt: "Cuối tuần trước con đã đi xem diễu hành hay đi dã ngoại?", type: 'topic', targetPatterns: ["i saw a parade", "i had a picnic", "last weekend"], suggestedAnswer: "I had a picnic with my family last weekend." },
-    { id: 8, question: "What happened when you lost your backpack?", vietnamesePrompt: "Có chuyện gì xảy ra thế, con làm mất ba lô à?", type: 'topic', targetPatterns: ["i lost my", "backpack", "look for it", "together"], suggestedAnswer: "I lost my backpack. Let's look for it together." },
-    { id: 9, question: "Did some dinosaurs have feathers?", vietnamesePrompt: "Có phải một số loài khủng long có lông vũ không?", type: 'topic', targetPatterns: ["yes, they did", "some dinosaurs", "had feathers"], suggestedAnswer: "Yes, some dinosaurs had feathers." },
-    { id: 10, question: "Did a T-Rex dinosaur have wings?", vietnamesePrompt: "Khủng long bạo chúa T-Rex có cánh không con?", type: 'topic', targetPatterns: ["no, it didn't", "no, they didn't", "didn't have wings"], suggestedAnswer: "No, it didn't. It had claws and a tail." }
+    { id: 2, question: "How are you today?", vietnamesePrompt: "Hôm nay con khỏe không?", type: 'warmup', targetPatterns: ["i'm good", "fine"], suggestedAnswer: "I'm very well, thank you!" },
+    { id: 3, question: "What is your favorite food?", vietnamesePrompt: "Món ăn yêu thích của con là gì?", type: 'warmup', targetPatterns: ["i like", "favorite food is"], suggestedAnswer: "My favorite food is noodles." },
+    { id: 4, question: "What did you eat for lunch yesterday?", vietnamesePrompt: "Trưa hôm qua con đã ăn món gì?", type: 'topic', targetPatterns: ["i ate", "noodles", "sushi"], suggestedAnswer: "I ate sushi and curry." },
+    { id: 5, question: "What did you drink with your dinner last night?", vietnamesePrompt: "Tối qua con uống nước gì cùng bữa tối?", type: 'topic', targetPatterns: ["i drank", "lemonade", "water"], suggestedAnswer: "I drank fresh lemonade." },
+    { id: 6, question: "When did she go bowling?", vietnamesePrompt: "Cô ấy đã đi chơi bowling khi nào?", type: 'topic', targetPatterns: ["went bowling", "yesterday"], suggestedAnswer: "She went bowling yesterday." },
+    { id: 7, question: "Did you see a parade or have a picnic last weekend?", vietnamesePrompt: "Cuối tuần trước con đã đi xem diễu hành hay đi dã ngoại?", type: 'topic', targetPatterns: ["i saw a parade", "i had a picnic"], suggestedAnswer: "I had a picnic with my family last weekend." },
+    { id: 8, question: "What happened when you lost your backpack?", vietnamesePrompt: "Có chuyện gì xảy ra thế, con làm mất ba lô à?", type: 'topic', targetPatterns: ["i lost my", "backpack"], suggestedAnswer: "I lost my backpack. Let's look for it together." },
+    { id: 9, question: "Did some dinosaurs have feathers?", vietnamesePrompt: "Có phải một số loài khủng long có lông vũ không?", type: 'topic', targetPatterns: ["yes, they did", "had feathers"], suggestedAnswer: "Yes, some dinosaurs had feathers." },
+    { id: 10, question: "Did a T-Rex dinosaur have wings?", vietnamesePrompt: "Khủng long bạo chúa T-Rex có cánh không con?", type: 'topic', targetPatterns: ["no, it didn't", "didn't have wings"], suggestedAnswer: "No, it didn't. It had claws and a tail." }
   ],
   'unit-6': [
     { id: 1, question: "Hello! What is your name?", vietnamesePrompt: "Tên của con là gì?", type: 'warmup', targetPatterns: ["my name is", "i'm"], suggestedAnswer: "My name is Danny." },
-    { id: 2, question: "How do you feel today?", vietnamesePrompt: "Hôm nay con cảm thấy thế nào?", type: 'warmup', targetPatterns: ["i feel", "i'm happy", "good"], suggestedAnswer: "I feel wonderful today!" },
-    { id: 3, question: "Do you like music?", vietnamesePrompt: "Con có thích âm nhạc không?", type: 'warmup', targetPatterns: ["yes, i do", "i like music", "i love music"], suggestedAnswer: "Yes, I do. I like singing songs." },
-    { id: 4, question: "What do you like to do in your free time?", vietnamesePrompt: "Con thích làm gì trong thời gian rảnh rỗi?", type: 'topic', targetPatterns: ["i like to", "sing songs", "make movies", "write stories", "paint pictures", "design clothes"], suggestedAnswer: "I like to write stories and make models." },
-    { id: 5, question: "Does he like to design clothes or sing songs?", vietnamesePrompt: "Cậu ấy thích thiết kế quần áo hay hát?", type: 'topic', targetPatterns: ["he likes to", "design clothes", "sing songs"], suggestedAnswer: "He likes to design clothes in his free time." },
-    { id: 6, question: "What did you cook or bake for your friends?", vietnamesePrompt: "Con đã nấu ăn hay nướng bánh gì cho các bạn của mình?", type: 'topic', targetPatterns: ["i cooked", "i baked", "dinner", "cookies", "baked cookies"], suggestedAnswer: "I baked delicious cookies for them." },
-    { id: 7, question: "Did you make a card or knit a scarf for your mother?", vietnamesePrompt: "Con có làm thiệp hay đan khăn quàng cổ tặng mẹ không?", type: 'topic', targetPatterns: ["i made a card", "i knitted a scarf", "for my mother", "yes, i did"], suggestedAnswer: "I made a beautiful card for my mother." },
-    { id: 8, question: "If your neighbor is carrying heavy bags, what should you ask?", vietnamesePrompt: "Nếu hàng xóm đang xách túi nặng, con sẽ hỏi thế nào để giúp đỡ?", type: 'topic', targetPatterns: ["could you", "carry these bags", "let me help", "sure, no problem"], suggestedAnswer: "Could I carry these bags for you?" },
-    { id: 9, question: "What is your favorite type of art?", vietnamesePrompt: "Con thích loại hình nghệ thuật nào nhất?", type: 'topic', targetPatterns: ["i like painting", "sculpture", "photograph", "mosaic"], suggestedAnswer: "My favorite art is a colorful painting." },
-    { id: 10, question: "This is a beautiful photograph. What is it about?", vietnamesePrompt: "Đây là một bức ảnh rất đẹp. Nó chụp về cái gì vậy con?", type: 'topic', targetPatterns: ["this is a", "photograph of", "about"], suggestedAnswer: "This is a photograph of my school." }
+    { id: 2, question: "How do you feel today?", vietnamesePrompt: "Hôm nay con cảm thấy thế nào?", type: 'warmup', targetPatterns: ["i feel", "good"], suggestedAnswer: "I feel wonderful today!" },
+    { id: 3, question: "Do you like music?", vietnamesePrompt: "Con có thích âm nhạc không?", type: 'warmup', targetPatterns: ["yes, i do", "i like music"], suggestedAnswer: "Yes, I do. I like singing songs." },
+    { id: 4, question: "What do you like to do in your free time?", vietnamesePrompt: "Con thích làm gì trong thời gian rảnh rỗi?", type: 'topic', targetPatterns: ["i like to", "sing songs", "write stories"], suggestedAnswer: "I like to write stories and make models." },
+    { id: 5, question: "Does he like to design clothes or sing songs?", vietnamesePrompt: "Cậu ấy thích thiết kế quần áo hay hát?", type: 'topic', targetPatterns: ["he likes to", "design clothes"], suggestedAnswer: "He likes to design clothes in his free time." },
+    { id: 6, question: "What did you cook or bake for your friends?", vietnamesePrompt: "Con đã nấu ăn hay nướng bánh gì cho các bạn của mình?", type: 'topic', targetPatterns: ["i cooked", "i baked"], suggestedAnswer: "I baked delicious cookies for them." },
+    { id: 7, question: "Did you make a card or knit a scarf for your mother?", vietnamesePrompt: "Con có làm thiệp hay đan khăn quàng cổ tặng mẹ không?", type: 'topic', targetPatterns: ["i made a card", "i knitted a scarf"], suggestedAnswer: "I made a beautiful card for my mother." },
+    { id: 8, question: "If your neighbor is carrying heavy bags, what should you ask?", vietnamesePrompt: "Nếu hàng xóm đang xách túi nặng, con sẽ hỏi thế nào để giúp đỡ?", type: 'topic', targetPatterns: ["could you", "carry these bags"], suggestedAnswer: "Could I carry these bags for you?" },
+    { id: 9, question: "What is your favorite type of art?", vietnamesePrompt: "Con thích loại hình nghệ thuật nào nhất?", type: 'topic', targetPatterns: ["i like painting", "sculpture"], suggestedAnswer: "My favorite art is a colorful painting." },
+    { id: 10, question: "This is a beautiful photograph. What is it about?", vietnamesePrompt: "Đây là một bức ảnh rất đẹp. Nó chụp về cái gì vậy con?", type: 'topic', targetPatterns: ["this is a", "photograph of"], suggestedAnswer: "This is a photograph of my school." }
   ],
   'unit-7': [
     { id: 1, question: "Hi there! What is your name?", vietnamesePrompt: "Chào con! Con tên gì nhỉ?", type: 'warmup', targetPatterns: ["my name is", "i'm"], suggestedAnswer: "My name is Emma." },
     { id: 2, question: "How old are you?", vietnamesePrompt: "Con năm nay mấy tuổi rồi?", type: 'warmup', targetPatterns: ["i am", "i'm"], suggestedAnswer: "I am ten years old." },
-    { id: 3, question: "Where are you from?", vietnamesePrompt: "Con đến từ đâu thế?", type: 'warmup', targetPatterns: ["i am from", "i'm from", "vietnam"], suggestedAnswer: "I am from Vietnam." },
-    { id: 4, question: "What do you want to be when you grow up?", vietnamesePrompt: "Con muốn làm nghề gì khi lớn lên?", type: 'topic', targetPatterns: ["want to be", "actor", "artist", "musician", "game designer", "journalist", "scientist"], suggestedAnswer: "I want to be a game designer." },
-    { id: 5, question: "What does he want to be? An artist or a scientist?", vietnamesePrompt: "Cậu ấy muốn trở thành ai? Hoạ sĩ hay nhà khoa học?", type: 'topic', targetPatterns: ["wants to be", "an artist", "a scientist"], suggestedAnswer: "He wants to be a famous scientist." },
-    { id: 6, question: "What do you want to do when you're older?", vietnamesePrompt: "Con muốn làm điều gì khi lớn lên?", type: 'topic', targetPatterns: ["want to", "go to space", "fly a helicopter", "explore the jungle", "travel the world"], suggestedAnswer: "I want to travel the world and go to space." },
-    { id: 7, question: "Do you want to fly a helicopter or work with animals?", vietnamesePrompt: "Con muốn lái trực thăng hay làm việc với động vật?", type: 'topic', targetPatterns: ["i want to fly", "i want to work", "helicopter", "animals"], suggestedAnswer: "I want to work with wild animals." },
-    { id: 8, question: "What does the 'No Running' sign mean?", vietnamesePrompt: "Biển báo 'No Running' có nghĩa là gì con nhỉ?", type: 'topic', targetPatterns: ["it means", "can't run", "you cannot run", "here"], suggestedAnswer: "It means you can't run here." },
-    { id: 9, question: "Do astronauts have to wear a space suit in space?", vietnamesePrompt: "Các phi hành gia có phải mặc đồ phi hành vũ trụ trong không gian không?", type: 'topic', targetPatterns: ["yes, they do", "have to wear", "space suit"], suggestedAnswer: "Yes, they have to wear a space suit." },
-    { id: 10, question: "How do astronauts get to the space station?", vietnamesePrompt: "Làm thế nào phi hành gia lên được trạm vũ trụ?", type: 'topic', targetPatterns: ["take the space shuttle", "space shuttle", "space station"], suggestedAnswer: "They take the space shuttle to get to the space station." }
+    { id: 3, question: "Where are you from?", vietnamesePrompt: "Con đến từ đâu thế?", type: 'warmup', targetPatterns: ["i am from", "i'm from"], suggestedAnswer: "I am from Vietnam." },
+    { id: 4, question: "What do you want to be when you grow up?", vietnamesePrompt: "Con muốn làm nghề gì khi lớn lên?", type: 'topic', targetPatterns: ["want to be", "scientist"], suggestedAnswer: "I want to be a game designer." },
+    { id: 5, question: "What does he want to be? An artist or a scientist?", vietnamesePrompt: "Cậu ấy muốn trở thành ai? Hoạ sĩ hay nhà khoa học?", type: 'topic', targetPatterns: ["wants to be", "a scientist"], suggestedAnswer: "He wants to be a famous scientist." },
+    { id: 6, question: "What do you want to do when you're older?", vietnamesePrompt: "Con muốn làm điều gì khi lớn lên?", type: 'topic', targetPatterns: ["want to", "travel the world"], suggestedAnswer: "I want to travel the world and go to space." },
+    { id: 7, question: "Do you want to fly a helicopter or work with animals?", vietnamesePrompt: "Con muốn lái trực thăng hay làm việc với động vật?", type: 'topic', targetPatterns: ["i want to fly", "work with animals"], suggestedAnswer: "I want to work with wild animals." },
+    { id: 8, question: "What does the 'No Running' sign mean?", vietnamesePrompt: "Biển báo 'No Running' có nghĩa là gì con nhỉ?", type: 'topic', targetPatterns: ["it means", "can't run"], suggestedAnswer: "It means you can't run here." },
+    { id: 9, question: "Do astronauts have to wear a space suit in space?", vietnamesePrompt: "Các phi hành gia có phải mặc đồ phi hành vũ trụ trong không gian không?", type: 'topic', targetPatterns: ["yes, they do", "space suit"], suggestedAnswer: "Yes, they have to wear a space suit." },
+    { id: 10, question: "How do astronauts get to the space station?", vietnamesePrompt: "Làm thế nào phi hành gia lên được trạm vũ trụ?", type: 'topic', targetPatterns: ["space shuttle", "space station"], suggestedAnswer: "They take the space shuttle to get to the space station." }
   ],
   'unit-8': [
     { id: 1, question: "Hello! What is your name?", vietnamesePrompt: "Xin chào! Con tên là gì?", type: 'warmup', targetPatterns: ["my name is", "i'm"], suggestedAnswer: "My name is Tommy." },
-    { id: 2, question: "How do you feel today?", vietnamesePrompt: "Hôm nay con cảm thấy thế nào?", type: 'warmup', targetPatterns: ["i feel", "i'm happy", "excited"], suggestedAnswer: "I feel very excited today!" },
-    { id: 3, question: "What is your favorite vacation place?", vietnamesePrompt: "Nơi đi du lịch yêu thích của con là đâu?", type: 'warmup', targetPatterns: ["i like beach", "i like hotel", "beach", "hotel", "mountain"], suggestedAnswer: "My favorite vacation place is the beach." },
-    { id: 4, question: "What are you going to do on vacation?", vietnamesePrompt: "Con dự định sẽ làm gì trong kỳ nghỉ sắp tới?", type: 'topic', targetPatterns: ["going to", "take a boat ride", "see a show", "go on a bus tour", "swim in the ocean"], suggestedAnswer: "I am going to swim in the ocean and stay in a hotel." },
-    { id: 5, question: "When are you going to take a boat ride?", vietnamesePrompt: "Khi nào con dự định đi du ngoạn bằng thuyền?", type: 'topic', targetPatterns: ["going to take", "boat ride", "tomorrow", "next week"], suggestedAnswer: "I am going to take a boat ride tomorrow." },
-    { id: 6, question: "What are you going to take with you on a camping trip?", vietnamesePrompt: "Con định mang theo những món đồ gì khi đi cắm trại?", type: 'topic', targetPatterns: ["going to take", "swimsuit", "towel", "money", "tent", "flashlight", "sleeping bag"], suggestedAnswer: "I am going to take a tent, a flashlight, and a sleeping bag." },
-    { id: 7, question: "Do you need a swimsuit and a towel to swim in the ocean?", vietnamesePrompt: "Con có cần quần áo bơi và khăn tắm để bơi ở biển không?", type: 'topic', targetPatterns: ["yes, i do", "yes, you do", "need a swimsuit", "towel"], suggestedAnswer: "Yes, I am going to take a swimsuit and a towel." },
-    { id: 8, question: "What do you say to wish someone a great time before their trip?", vietnamesePrompt: "Con nói câu gì để chúc ai đó đi chơi vui vẻ trước khi đi?", type: 'topic', targetPatterns: ["have a great time", "have a nice trip", "bye"], suggestedAnswer: "Bye! Have a great time!" },
-    { id: 9, question: "How are you going to the department store?", vietnamesePrompt: "Con định di chuyển đến cửa hàng bách hóa bằng cách nào?", type: 'topic', targetPatterns: ["going to take", "take a taxi", "ferry", "subway", "gondola"], suggestedAnswer: "I'm going to take a taxi." },
-    { id: 10, question: "What is your favorite transportation for vacation?", vietnamesePrompt: "Phương tiện di chuyển yêu thích của con trong kỳ nghỉ là gì?", type: 'topic', targetPatterns: ["i like", "ferry", "subway", "gondola", "taxi"], suggestedAnswer: "I like taking the ferry on vacation." }
+    { id: 2, question: "How do you feel today?", vietnamesePrompt: "Hôm nay con cảm thấy thế nào?", type: 'warmup', targetPatterns: ["i feel", "excited"], suggestedAnswer: "I feel very excited today!" },
+    { id: 3, question: "What is your favorite vacation place?", vietnamesePrompt: "Nơi đi du lịch yêu thích của con là đâu?", type: 'warmup', targetPatterns: ["i like beach", "beach"], suggestedAnswer: "My favorite vacation place is the beach." },
+    { id: 4, question: "What are you going to do on vacation?", vietnamesePrompt: "Con dự định sẽ làm gì trong kỳ nghỉ sắp tới?", type: 'topic', targetPatterns: ["going to", "swim in the ocean"], suggestedAnswer: "I am going to swim in the ocean and stay in a hotel." },
+    { id: 5, question: "When are you going to take a boat ride?", vietnamesePrompt: "Khi nào con dự định đi du ngoạn bằng thuyền?", type: 'topic', targetPatterns: ["going to take", "tomorrow"], suggestedAnswer: "I am going to take a boat ride tomorrow." },
+    { id: 6, question: "What are you going to take with you on a camping trip?", vietnamesePrompt: "Con định mang theo những món đồ gì khi đi cắm trại?", type: 'topic', targetPatterns: ["going to take", "tent", "flashlight"], suggestedAnswer: "I am going to take a tent, a flashlight, and a sleeping bag." },
+    { id: 7, question: "Do you need a swimsuit and a towel to swim in the ocean?", vietnamesePrompt: "Con có cần quần áo bơi và khăn tắm để bơi ở biển không?", type: 'topic', targetPatterns: ["yes, i do", "swimsuit", "towel"], suggestedAnswer: "Yes, I am going to take a swimsuit and a towel." },
+    { id: 8, question: "What do you say to wish someone a great time before their trip?", vietnamesePrompt: "Con nói câu gì để chúc ai đó đi chơi vui vẻ trước khi đi?", type: 'topic', targetPatterns: ["have a great time", "nice trip"], suggestedAnswer: "Bye! Have a great time!" },
+    { id: 9, question: "How are you going to the department store?", vietnamesePrompt: "Con định di chuyển đến cửa hàng bách hóa bằng cách nào?", type: 'topic', targetPatterns: ["take a taxi", "subway"], suggestedAnswer: "I'm going to take a taxi." },
+    { id: 10, question: "What is your favorite transportation for vacation?", vietnamesePrompt: "Phương tiện di chuyển yêu thích của con trong kỳ nghỉ là gì?", type: 'topic', targetPatterns: ["i like", "ferry"], suggestedAnswer: "I like taking the ferry on vacation." }
   ]
-};
-
-// Helper to check and retrieve images based on gender pronouns or third-person pronouns,
-// avoiding personal references such as You, Your, I, My
-const getQuestionImage = (questionText: string): string | null => {
-  const text = questionText.toLowerCase();
-  const words = text.split(/\s+/).map(w => w.replace(/[^a-z]/g, ''));
-  
-  const targetWords = ['he', 'she', 'they', 'him', 'her', 'them', 'his', 'hers', 'their'];
-  const excludeWords = ['you', 'your', 'i', 'my', 'me', 'mine'];
-  
-  const hasTarget = words.some(w => targetWords.includes(w));
-  const hasExclude = words.some(w => excludeWords.includes(w));
-  
-  if (!hasTarget || hasExclude) {
-    return null;
-  }
-  
-  // Specific topic-based high-quality kid-friendly pictures
-  if (text.includes('skiing')) {
-    return 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('climbing') || text.includes('hiking') || text.includes('outdoors')) {
-    return 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('party') || text.includes('accessory') || text.includes('necklace')) {
-    return 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('rome') || text.includes('house') || text.includes('home')) {
-    return 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('metal') || text.includes('cup')) {
-    return 'https://images.unsplash.com/photo-1576016770956-debb63d900bb?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('bowling')) {
-    return 'https://images.unsplash.com/photo-1541252260730-0412e8e2108e?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('clothes') || text.includes('design')) {
-    return 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('artist') || text.includes('scientist')) {
-    return 'https://images.unsplash.com/photo-1533158326339-7f3cf2404354?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('animals') || text.includes('wild')) {
-    return 'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=600&q=80';
-  }
-  if (text.includes('space') || text.includes('astronaut')) {
-    return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80';
-  }
-  
-  // General fallback
-  return 'https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&w=600&q=80';
 };
 
 export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, onBack }: AISpeakingCoachProps) {
@@ -423,12 +227,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const [micError, setMicError] = useState<'blocked' | 'error' | null>(null);
   const [answersLog, setAnswersLog] = useState<{ question: string, answer: string }[]>([]);
 
-  // Score Accumulators
-  const [scores, setScores] = useState({
-    pronunciation: [] as number[],
-    grammar: [] as number[],
-    fluency: [] as number[]
-  });
+  // Real Gemini evaluation state
+  const [evalResultState, setEvalResultState] = useState<any>(null);
+  const [evalErrorState, setEvalErrorState] = useState<boolean>(false);
 
   // Chat message logs
   const [chatLog, setChatLog] = useState<ChatMessage[]>([]);
@@ -467,7 +268,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const startNewTest = () => {
     setCurrentQuestionIndex(0);
     setTestCompleted(false);
-    setScores({ pronunciation: [], grammar: [], fluency: [] });
+    setEvalResultState(null);
+    setEvalErrorState(false);
     setTranscript('');
     setSimulationText('');
     setAnswersLog([]);
@@ -494,6 +296,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef<string>('');
+  const latestFullTextRef = useRef<string>('');
   const isStoppingRef = useRef<boolean>(false);
 
   const startRecording = () => {
@@ -502,6 +305,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     setMicError(null);
     setTranscript('');
     finalTranscriptRef.current = '';
+    latestFullTextRef.current = '';
     isStoppingRef.current = false;
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -515,7 +319,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.continuous = true;
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      recognition.continuous = !isMobile;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
@@ -536,10 +341,11 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         let finalAccumulated = '';
 
         for (let i = 0; i < event.results.length; ++i) {
+          const text = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalAccumulated += event.results[i][0].transcript + ' ';
+            finalAccumulated += text + ' ';
           } else {
-            interimText += event.results[i][0].transcript;
+            interimText += text;
           }
         }
 
@@ -548,6 +354,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         }
 
         const fullDisplayText = (finalAccumulated + interimText).trim();
+        latestFullTextRef.current = fullDisplayText;
         setTranscript(fullDisplayText);
       };
 
@@ -569,10 +376,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         setIsRecording(false);
         stopTimer();
 
-        // Process answer ONLY when user requested stop and recognition has cleanly ended
         if (isStoppingRef.current) {
           isStoppingRef.current = false;
-          const capturedText = (finalTranscriptRef.current || transcript).trim();
+          const capturedText = (finalTranscriptRef.current || latestFullTextRef.current || transcript).trim();
           console.log("Final transcript:", capturedText);
 
           if (!capturedText) {
@@ -615,11 +421,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     }
   };
 
-  // Process and grade user speech (For text/keyboard fallback)
   const processAnswer = async (customText?: string) => {
     const finalAnswer = (customText || transcript || simulationText || '').trim();
     
-    // Require real typed input - NEVER auto-insert suggested answer!
     if (!finalAnswer) {
       console.warn("[AISpeakingCoach] Empty text answer submitted. Stopping pipeline.");
       alert("Bé hãy gõ hoặc nói câu trả lời của mình nhé! (Please record or type your answer.)");
@@ -628,7 +432,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     setIsProcessing(true);
 
-    // Record the user's message
     const studentMsg: ChatMessage = {
       id: `student-${currentQuestionIndex}`,
       sender: 'student',
@@ -643,7 +446,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     const updatedLog = [...answersLog, answerItem];
     setAnswersLog(updatedLog);
 
-    // Call AI Teacher endpoint `/api/chat`
     try {
       const nextQ = currentQuestionIndex + 1 < questions.length ? questions[currentQuestionIndex + 1] : null;
       const response = await fetch("/api/chat", {
@@ -697,7 +499,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       }
     } catch (err) {
       console.error("AI Teacher chat generation error:", err);
-      // Fallback
       setTimeout(() => {
         const nextIdx = currentQuestionIndex + 1;
         if (nextIdx < questions.length) {
@@ -724,9 +525,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     }
   };
 
-  // Single comprehensive AI evaluation at the end of the conversation
   const runComprehensiveEvaluation = async (finalLog: { question: string, answer: string }[]) => {
     setIsProcessing(true);
+    setEvalErrorState(false);
 
     const loadingMsg: ChatMessage = {
       id: `ai-loading-eval`,
@@ -736,184 +537,138 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     };
     setChatLog(prev => [...prev, loadingMsg]);
 
-    let pronunciationScore = 85;
-    let grammarScore = 85;
-    let fluencyScore = 85;
-    let vocabularyScore = 85;
-    let overallScore = 85;
-    let feedbackText = "";
-    let strengths: string[] = [];
-    let weaknesses: string[] = [];
-    let commonMistakes: string[] = [];
-    let suggestedPracticeText = "";
-    let usedAIEval = false;
-
     console.log("Transcript:", JSON.stringify(finalLog, null, 2));
+
+    const requestPayload = {
+      history: finalLog,
+      unitId: activeUnit.id
+    };
+    console.log("Gemini Request:", JSON.stringify(requestPayload, null, 2));
 
     try {
       const response = await fetch("/api/evaluate-speaking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          history: finalLog,
-          unitId: activeUnit.id
-        })
+        body: JSON.stringify(requestPayload)
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Gemini raw response:", JSON.stringify(data));
+        console.log("Gemini Raw Response:", JSON.stringify(data));
         
         if (data && data.useFallback !== true) {
-          pronunciationScore = data.pronunciationScore ?? data.pronunciation ?? 85;
-          grammarScore = data.grammarScore ?? data.grammar ?? 85;
-          fluencyScore = data.fluencyScore ?? data.fluency ?? 85;
-          overallScore = data.overallScore ?? Math.round((pronunciationScore + grammarScore + fluencyScore) / 3);
-          vocabularyScore = data.vocabularyScore ?? data.vocabulary ?? overallScore;
-          feedbackText = data.feedback || "";
-          strengths = data.strengths || [];
-          weaknesses = data.weaknesses || [];
-          commonMistakes = data.commonMistakes || data.corrections || [];
-          suggestedPracticeText = data.suggestedPractice || "";
+          console.log("Parsed JSON:", JSON.stringify(data, null, 2));
 
-          console.log("JSON parse success");
-          console.log("Parsed evaluation:", {
-            overallScore,
-            pronunciationScore,
-            grammarScore,
-            fluencyScore,
-            feedback: feedbackText,
-            strengths,
-            weaknesses,
-            commonMistakes,
-            suggestedPractice: suggestedPracticeText
+          const evalObj = {
+            overallScore: Number(data.overallScore),
+            pronunciationScore: Number(data.pronunciationScore ?? data.pronunciation),
+            grammarScore: Number(data.grammarScore ?? data.grammar),
+            fluencyScore: Number(data.fluencyScore ?? data.fluency),
+            feedback: data.feedback || "",
+            strengths: Array.isArray(data.strengths) ? data.strengths : [],
+            weaknesses: Array.isArray(data.weaknesses) ? data.weaknesses : [],
+            commonMistakes: Array.isArray(data.commonMistakes) ? data.commonMistakes : (Array.isArray(data.corrections) ? data.corrections : []),
+            suggestedPractice: data.suggestedPractice || ""
+          };
+
+          console.log("Evaluation Object:", JSON.stringify(evalObj, null, 2));
+          console.log("Displayed Scores:", {
+            overallScore: evalObj.overallScore,
+            pronunciationScore: evalObj.pronunciationScore,
+            grammarScore: evalObj.grammarScore,
+            fluencyScore: evalObj.fluencyScore
           });
-          usedAIEval = true;
-        } else {
-          console.log("JSON parse failed");
+
+          setEvalResultState(evalObj);
+          setEvalErrorState(false);
+
+          let reportText = `🏆 **KẾT QUẢ ĐÁNH GIÁ BÀI NÓI AI (SPEECH REPORT)**\n\n`;
+          reportText += `⭐ **Điểm số chi tiết:**\n`;
+          reportText += `- Phát âm (Pronunciation): ${evalObj.pronunciationScore}/100 🗣️\n`;
+          reportText += `- Ngữ pháp (Grammar): ${evalObj.grammarScore}/100 📝\n`;
+          reportText += `- Trôi chảy (Fluency): ${evalObj.fluencyScore}/100 ⚡\n`;
+          reportText += `- **Điểm tổng quát (Overall): ${evalObj.overallScore}/100 🏆**\n\n`;
+          reportText += `🤖 **Giáo viên AI nhận xét:**\n"${evalObj.feedback}"\n\n`;
+
+          if (evalObj.strengths.length > 0) {
+            reportText += `💪 **Điểm mạnh của con (Strengths):**\n`;
+            evalObj.strengths.forEach((s: string) => { reportText += `• ${s}\n`; });
+            reportText += `\n`;
+          }
+
+          if (evalObj.weaknesses.length > 0) {
+            reportText += `✍️ **Điểm cần cải thiện (Areas to improve):**\n`;
+            evalObj.weaknesses.forEach((w: string) => { reportText += `• ${w}\n`; });
+            reportText += `\n`;
+          }
+
+          if (evalObj.commonMistakes.length > 0) {
+            reportText += `❌ **Lỗi thường gặp / Gợi ý sửa:**\n`;
+            evalObj.commonMistakes.forEach((m: string) => { reportText += `• ${m}\n`; });
+            reportText += `\n`;
+          }
+
+          if (evalObj.suggestedPractice) {
+            reportText += `💡 **Gợi ý luyện tập:**\n• ${evalObj.suggestedPractice}\n`;
+          }
+
+          const reportMsg: ChatMessage = {
+            id: `ai-final-report`,
+            sender: 'ai',
+            text: reportText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+
+          setChatLog(prev => prev.filter(m => m.id !== 'ai-loading-eval').concat(reportMsg));
+
+          setTimeout(() => {
+            finishSpeakingTest(evalObj);
+          }, 1500);
+          return;
         }
-      } else {
-        console.log("JSON parse failed");
       }
     } catch (err) {
-      console.log("JSON parse failed");
-      console.error("Comprehensive speaking evaluation failed:", err);
+      console.error("Comprehensive speaking evaluation error:", err);
     }
 
-    if (!usedAIEval) {
-      feedbackText = `Con đã hoàn thành cuộc hội thoại luyện nói xuất sắc với Thầy cô AI!`;
-      strengths = ["Phát âm rõ ràng, tự tin", "Trả lời đầy đủ các câu hỏi"];
-      weaknesses = ["Đôi chỗ phát âm chưa đều", "Cần luyện tập thêm một số từ vựng chủ đề"];
-      commonMistakes = ["Nói nhanh đôi chỗ bị vấp"];
-    }
-
-    // Format the final report message
-    let reportText = `🏆 **KẾT QUẢ ĐÁNH GIÁ BÀI NÓI AI (SPEECH REPORT)**\n\n`;
-    reportText += `⭐ **Điểm số chi tiết:**\n`;
-    reportText += `- Phát âm (Pronunciation): ${pronunciationScore}/100 🗣️\n`;
-    reportText += `- Ngữ pháp (Grammar): ${grammarScore}/100 📝\n`;
-    reportText += `- Trôi chảy (Fluency): ${fluencyScore}/100 ⚡\n`;
-    reportText += `- Từ vựng (Vocabulary): ${vocabularyScore}/100 📚\n`;
-    reportText += `- **Điểm tổng quát (Overall): ${overallScore}/100 🏆**\n\n`;
-    reportText += `🤖 **Giáo viên AI nhận xét:**\n"${feedbackText}"\n\n`;
-    
-    if (strengths.length > 0) {
-      reportText += `💪 **Điểm mạnh của con (Strengths):**\n`;
-      strengths.forEach(s => { reportText += `• ${s}\n`; });
-      reportText += `\n`;
-    }
-
-    if (weaknesses.length > 0) {
-      reportText += `✍️ **Điểm cần cải thiện (Areas to improve):**\n`;
-      weaknesses.forEach(w => { reportText += `• ${w}\n`; });
-      reportText += `\n`;
-    }
-
-    if (commonMistakes.length > 0) {
-      reportText += `❌ **Lỗi thường gặp (Common Mistakes) / Gợi ý sửa:**\n`;
-      commonMistakes.forEach(m => { reportText += `• ${m}\n`; });
-      reportText += `\n`;
-    }
-
-    if (suggestedPracticeText) {
-      reportText += `💡 **Gợi ý luyện tập (Suggested Practice):**\n• ${suggestedPracticeText}\n`;
-    }
-
-    const reportMsg: ChatMessage = {
-      id: `ai-final-report`,
-      sender: 'ai',
-      text: reportText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    // Remove loading message and append final report
-    setChatLog(prev => prev.filter(m => m.id !== 'ai-loading-eval').concat(reportMsg));
-
-    setScores({
-      pronunciation: [pronunciationScore],
-      grammar: [grammarScore],
-      fluency: [fluencyScore]
-    });
-
-    const finalEvalResult = {
-      overallScore,
-      pronunciationScore,
-      grammarScore,
-      fluencyScore,
-      feedback: feedbackText,
-      strengths,
-      weaknesses,
-      commonMistakes
-    };
-
-    setTimeout(() => {
-      finishSpeakingTest(finalEvalResult);
-    }, 1500);
+    setChatLog(prev => prev.filter(m => m.id !== 'ai-loading-eval'));
+    setEvalErrorState(true);
+    setIsProcessing(false);
   };
 
   const finishSpeakingTest = (evalResult?: any) => {
     setTestCompleted(true);
     setIsProcessing(false);
 
-    const overallScore = evalResult?.overallScore || 85;
-    const avgPron = evalResult?.pronunciationScore || 85;
-    const avgGram = evalResult?.grammarScore || 85;
-    const avgFlu = evalResult?.fluencyScore || 85;
+    if (!evalResult) return;
 
-    // Award Points
-    const awardedPoints = overallScore * 5; // e.g. 95 score * 5 = 475 points
+    const overallScore = evalResult.overallScore;
+    const awardedPoints = overallScore * 5;
 
-    // Update Session History & Progress
     const updatedSession = { ...session };
-    
-    // Add Speaking Result Record
     const dateStr = new Date().toLocaleDateString('vi-VN');
-    
+
     const speakingResult = {
       unitId: activeUnit.id,
       overallScore,
-      pronunciationScore: avgPron,
-      grammarScore: avgGram,
-      responseSpeedScore: avgFlu,
+      pronunciationScore: evalResult.pronunciationScore,
+      grammarScore: evalResult.grammarScore,
+      responseSpeedScore: evalResult.fluencyScore,
       completedAt: dateStr,
-      commonErrors: evalResult?.commonMistakes || [],
-      feedbackForStudent: evalResult?.feedback || `Con phát âm rất tốt, tốc độ phản xạ tự nhiên. Cần chú ý thêm cấu trúc ngữ pháp một chút nhé!`,
+      commonErrors: evalResult.commonMistakes || [],
+      feedbackForStudent: evalResult.feedback,
       parentReport: {
-        strengths: evalResult?.strengths || ["Phát âm rõ ràng, to", "Có phản xạ tiếng Anh tự nhiên tốt"],
-        weaknesses: evalResult?.weaknesses || ["Nhầm lẫn chia động từ", "Đôi khi nói thiếu giới từ"],
-        suggestedPractice: `Ôn tập lại các câu hỏi Speaking của Unit ${activeUnit.number} để phát âm mượt mà hơn!`
+        strengths: evalResult.strengths || [],
+        weaknesses: evalResult.weaknesses || [],
+        suggestedPractice: evalResult.suggestedPractice || ""
       }
     };
 
-    // Initialize or assign speaking results
     if (!updatedSession.testResults) {
       updatedSession.testResults = {};
     }
-    
-    // Add points & save result
-    updatedSession.points = session.points + awardedPoints;
 
-    // Custom field injection since SpeakingResult is a new interface
+    updatedSession.points = session.points + awardedPoints;
     (updatedSession as any).speakingResults = {
       ...((updatedSession as any).speakingResults || {}),
       [activeUnit.id]: speakingResult
@@ -921,12 +676,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     onUpdateSession(updatedSession);
   };
-
-  // Get current speaking stats if completed
-  const avgPron = Math.round(scores.pronunciation.reduce((a, b) => a + b, 0) / Math.max(1, scores.pronunciation.length)) || 85;
-  const avgGram = Math.round(scores.grammar.reduce((a, b) => a + b, 0) / Math.max(1, scores.grammar.length)) || 85;
-  const avgFlu = Math.round(scores.fluency.reduce((a, b) => a + b, 0) / Math.max(1, scores.fluency.length)) || 85;
-  const overallScore = Math.round((avgPron + avgGram + avgFlu) / 3);
 
   return (
     <div className="bg-slate-50 min-h-screen pb-12 flex flex-col justify-between" id="ai-speaking-coach-main">
@@ -953,7 +702,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         </div>
 
         <div className="flex items-center space-x-3">
-          {/* Mute AI voice button */}
           <button
             onClick={() => setIsMuted(!isMuted)}
             className={`p-2 rounded-xl border transition cursor-pointer text-xs flex items-center gap-1 ${
@@ -974,213 +722,165 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         </div>
       </div>
 
-      {/* Main chat interface or Results card */}
-      <div className="max-w-4xl mx-auto w-full px-4 pt-6 flex-1 flex flex-col justify-between">
+      {/* Main Container */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 w-full flex-grow">
         
-        {!testCompleted ? (
-          <>
-            {/* Conversation Box */}
-            <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 shadow-sm flex-1 min-h-[400px] max-h-[550px] overflow-y-auto space-y-4 mb-4">
-              
-              {/* Leego branding message helper */}
-              <div className="bg-blue-50 border border-blue-100/50 rounded-2xl p-3.5 text-xs text-slate-600 leading-relaxed flex items-start space-x-3">
-                <span className="text-2xl">👩‍🏫</span>
-                <div>
-                  <p className="font-extrabold text-blue-900 mb-0.5">Anh ngữ LeeGo - Giáo viên AI thân thiện</p>
-                  <p className="text-[11px] text-slate-500">
-                    Chào con yêu! Hãy bấm giữ hoặc chạm vào nút **Microphone màu đỏ** ở phía dưới, nói thật to rõ ràng câu trả lời của con bằng tiếng Anh. Nếu con quên bài, bấm nút **"Gợi ý 💡"** để xem câu mẫu nhé!
-                  </p>
-                </div>
-              </div>
-
-              {/* Chat timeline logs */}
-              {chatLog.map((msg) => (
-                <div 
-                  key={msg.id}
-                  className={`flex ${msg.sender === 'ai' ? 'justify-start' : 'justify-end'} space-x-3 items-end animate-fade-in`}
-                >
-                  {msg.sender === 'ai' && (
-                    <div className="h-8 w-8 rounded-full bg-indigo-50 flex items-center justify-center border border-indigo-100 font-bold text-xs shadow-xs text-indigo-600">
-                      AI
-                    </div>
-                  )}
-
-                  <div className={`max-w-[85%] rounded-2xl p-3.5 text-xs sm:text-sm font-semibold leading-relaxed shadow-xs ${
-                    msg.sender === 'ai'
-                      ? msg.text.includes('Feedback')
-                        ? 'bg-amber-50/70 border border-amber-100 text-slate-800 font-medium'
-                        : 'bg-slate-50 border border-slate-100 text-slate-800'
-                      : 'bg-brand-primary text-white font-bold'
-                  }`}>
-                    {/* Preserve line breaks */}
-                    <div className="whitespace-pre-line">
-                      {msg.text}
-                    </div>
-                    
-                    <span className={`text-[9px] block text-right mt-1.5 ${
-                      msg.sender === 'ai' ? 'text-slate-400' : 'text-rose-100'
-                    }`}>
-                      {msg.timestamp}
-                    </span>
-                  </div>
-
-                  {msg.sender === 'student' && (
-                    <div className="h-8 w-8 rounded-full bg-rose-100 flex items-center justify-center border border-rose-200 font-bold text-xs text-brand-primary shadow-xs">
-                      Con
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              <div ref={chatEndRef} />
+        {/* Unit Info Banner */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-xs mb-6 flex items-center justify-between">
+          <div className="flex items-center space-x-3.5">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-rose-50 rounded-xl flex items-center justify-center text-brand-primary font-display font-extrabold text-base sm:text-lg">
+              {activeUnit.number}
             </div>
+            <div>
+              <h4 className="font-extrabold text-slate-800 text-xs sm:text-sm">{activeUnit.title}</h4>
+              <p className="text-[11px] text-slate-400 font-semibold mt-0.5">Tiến độ bài học: Câu {Math.min(currentQuestionIndex + 1, questions.length)} / {questions.length}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <div className="w-24 sm:w-32 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+              <div 
+                className="bg-brand-primary h-full rounded-full transition-all duration-500" 
+                style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs font-extrabold text-slate-600 font-mono">
+              {Math.round(((currentQuestionIndex + 1) / questions.length) * 100)}%
+            </span>
+          </div>
+        </div>
 
-            {/* Speaking Controller UI */}
-            <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 shadow-sm space-y-4">
+        {evalErrorState ? (
+          /* Error Screen when Gemini fails completely */
+          <div className="bg-white rounded-3xl border border-rose-100 p-8 sm:p-12 shadow-lg text-center space-y-5 animate-fade-in max-w-lg mx-auto my-12">
+            <div className="h-16 w-16 bg-rose-50 rounded-full flex items-center justify-center text-rose-500 mx-auto">
+              <ShieldAlert className="h-8 w-8" />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-lg font-extrabold text-slate-800">Không thể đánh giá bài nói. Vui lòng thử lại.</h4>
+              <p className="text-xs text-slate-500 font-medium">Hệ thống chưa nhận được kết quả đánh giá từ AI.</p>
+            </div>
+            <button
+              onClick={() => runComprehensiveEvaluation(answersLog)}
+              className="bg-brand-primary hover:bg-rose-600 text-white font-extrabold text-xs px-8 py-3.5 rounded-2xl transition cursor-pointer inline-flex items-center justify-center gap-2 shadow-md shadow-rose-100"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Thử lại</span>
+            </button>
+          </div>
+        ) : !testCompleted ? (
+          /* Active Chat View */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Left/Main Chat Panel */}
+            <div className="lg:col-span-2 space-y-4">
               
-              {/* Visual indicator of recording */}
-              {isRecording && (
-                <div className="flex flex-col items-center space-y-2 py-2">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="h-2 w-2 rounded-full bg-brand-primary animate-ping"></span>
-                    <span className="h-2 w-2 rounded-full bg-brand-primary animate-ping delay-75"></span>
-                    <span className="h-2 w-2 rounded-full bg-brand-primary animate-ping delay-150"></span>
-                  </div>
-                  <p className="text-xs text-brand-primary font-black animate-pulse">
-                    AI đang lắng nghe... Bé hãy nói câu trả lời ({recordDuration}s)
-                  </p>
-                </div>
-              )}
+              {/* Chat Message List */}
+              <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 shadow-xs min-h-[380px] max-h-[500px] overflow-y-auto space-y-4">
+                {chatLog.map((msg) => (
+                  <div 
+                    key={msg.id} 
+                    className={`flex ${msg.sender === 'student' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[85%] sm:max-w-[80%] rounded-2xl p-4 shadow-xs ${
+                      msg.sender === 'student'
+                        ? 'bg-brand-primary text-white rounded-tr-none'
+                        : 'bg-slate-50 border border-slate-100 text-slate-800 rounded-tl-none'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1.5 text-[10px] opacity-75">
+                        <span className="font-bold">
+                          {msg.sender === 'student' ? 'Học viên (Con)' : 'Giáo viên AI 🤖'}
+                        </span>
+                        <span>{msg.timestamp}</span>
+                      </div>
 
-              {/* Progress counter */}
-              <div className="flex justify-between items-center text-xs text-slate-400 font-bold">
-                <span>Câu hỏi {currentQuestionIndex + 1} / 10</span>
-                <span className="text-brand-purple">Oxford Everybody Up 4</span>
+                      <p className="text-xs sm:text-sm font-semibold whitespace-pre-line leading-relaxed">
+                        {msg.text}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
               </div>
 
-              {/* Visual Context Card for He/She/They questions (Enforces beautiful illustrations to provide clear context) */}
-              {getQuestionImage(questions[currentQuestionIndex].question) && (
-                <div className="rounded-2xl overflow-hidden border border-slate-100 shadow-xs bg-slate-50 p-3 text-center animate-fade-in flex flex-col items-center justify-center space-y-2">
-                  <span className="text-[10px] font-extrabold text-indigo-500 uppercase tracking-wider block">
-                    🖼️ Hình ảnh minh họa (Visual Context)
-                  </span>
-                  <img 
-                    src={getQuestionImage(questions[currentQuestionIndex].question)!} 
-                    alt="Speaking Context" 
-                    className="max-h-48 rounded-xl object-cover border border-slate-200 shadow-xs"
-                    referrerPolicy="no-referrer"
-                  />
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    (Bé hãy quan sát hình ảnh trên để trả lời câu hỏi nhé)
-                  </p>
-                </div>
-              )}
-
-
-              {/* Microphone access error banner */}
-              {micError === 'blocked' && (
-                <div className="bg-rose-50 border border-rose-200 p-4 rounded-2xl text-xs space-y-2 text-rose-800 animate-fade-in">
-                  <div className="flex items-center space-x-2 font-bold text-rose-700">
-                    <ShieldAlert className="h-4.5 w-4.5 text-rose-500 animate-pulse" />
-                    <span>Trình duyệt chưa được cấp quyền truy cập Micro!</span>
-                  </div>
-                  <p className="leading-relaxed">
-                    Bé vui lòng nhấp vào biểu tượng <strong>ổ khóa 🔒</strong> hoặc <strong>cài đặt trang web</strong> ở góc trái thanh địa chỉ trình duyệt, chọn <strong>Cho phép (Allow)</strong> cho Micro rồi thử lại nhé.
-                  </p>
-                  <p className="text-[10px] text-slate-500 font-medium">
-                    Mẹo: Bé cũng có thể dùng ô <strong>Mẹo nhập câu nói bằng bàn phím</strong> ở phía dưới để học ngay mà không cần micro!
-                  </p>
-                </div>
-              )}
-
-              {micError === 'error' && (
-                <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-xs space-y-2 text-amber-800 animate-fade-in">
-                  <div className="flex items-center space-x-2 font-bold text-amber-700">
-                    <AlertCircle className="h-4.5 w-4.5 text-amber-500" />
-                    <span>Không thể khởi động thiết bị thu âm</span>
-                  </div>
-                  <p className="leading-relaxed">
-                    Đã có lỗi xảy ra khi kết nối Micro. Bé hãy kiểm tra xem Micro của thiết bị đã bật chưa, hoặc bé cũng có thể gõ câu nói vào ô phía dưới nhé!
-                  </p>
-                </div>
-              )}
-
-              {/* Control buttons group */}
-              <div className="flex items-center justify-between gap-4">
+              {/* Speech Input & Control Area */}
+              <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 shadow-xs space-y-4">
                 
-                {/* Spacer to keep microphone button perfectly centered */}
-                <div className="w-24 hidden sm:block"></div>
+                {/* Realtime Microphone / Transcript Feedback */}
+                {isRecording && (
+                  <div className="bg-rose-50 border border-rose-100 p-3.5 rounded-2xl flex items-center space-x-3 animate-pulse">
+                    <div className="h-3 w-3 bg-brand-primary rounded-full animate-ping" />
+                    <p className="text-xs font-bold text-brand-primary flex-grow">
+                      Đang lắng nghe... ({recordDuration}s)
+                    </p>
+                  </div>
+                )}
 
-                {/* Main MIC trigger */}
-                <div className="flex-1 flex justify-center">
+                {transcript && (
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-xs font-semibold text-slate-700">
+                    💬 "{transcript}"
+                  </div>
+                )}
+
+                {/* Main Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-center gap-3">
                   {!isRecording ? (
                     <button
                       onClick={startRecording}
                       disabled={isProcessing}
-                      className={`h-16 w-16 rounded-full flex items-center justify-center transition cursor-pointer ${
-                        isProcessing 
-                          ? 'bg-slate-100 text-slate-300 border-2 border-slate-200 cursor-not-allowed'
-                          : 'bg-brand-primary hover:bg-rose-600 hover:scale-105 text-white shadow-md border-4 border-rose-100 active:scale-95'
+                      className={`w-full py-4 rounded-2xl font-extrabold text-sm transition cursor-pointer flex items-center justify-center space-x-2 shadow-md ${
+                        isProcessing
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          : 'bg-brand-primary hover:bg-rose-600 text-white shadow-rose-100'
                       }`}
-                      title="Chạm để bắt đầu nói"
                     >
-                      <Mic className="h-7 w-7" />
+                      <Mic className="h-5 w-5" />
+                      <span>{isProcessing ? 'Đang xử lý...' : 'Nhấn vào đây để Nói'}</span>
                     </button>
                   ) : (
                     <button
                       onClick={stopRecordingAndAnalyze}
-                      className="h-16 w-16 rounded-full bg-slate-950 text-white flex items-center justify-center transition cursor-pointer shadow-lg animate-pulse hover:bg-slate-800"
-                      title="Chạm để phân tích giọng nói"
+                      className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-extrabold text-sm transition cursor-pointer flex items-center justify-center space-x-2 shadow-md shadow-amber-100"
                     >
-                      <MicOff className="h-7 w-7 text-rose-500" />
+                      <MicOff className="h-5 w-5" />
+                      <span>Gửi câu trả lời (Dừng nói)</span>
                     </button>
                   )}
-                </div>
-
-                {/* Play Question Speech */}
-                <button
-                  onClick={() => speakText(questions[currentQuestionIndex].question)}
-                  className="px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
-                >
-                  <Volume2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Nghe câu hỏi</span>
-                </button>
-
-              </div>
-
-              {/* Speech simulator text entry for iFrame constraints / non-mic environments */}
-              <div className="pt-3 border-t border-slate-50 space-y-1.5">
-                <p className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3 text-brand-blue" />
-                  Mẹo: Nếu micro bị trình duyệt chặn, bé hãy gõ câu trả lời dưới đây để thử nghiệm AI nhé!
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={simulationText}
-                    onChange={(e) => setSimulationText(e.target.value)}
-                    placeholder="Gõ hoặc sao chép gợi ý dán vào đây..."
-                    className="flex-1 bg-slate-50 hover:bg-slate-100/50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-brand-primary focus:bg-white transition"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        processAnswer(simulationText);
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => processAnswer(simulationText)}
-                    disabled={!simulationText.trim() || isProcessing}
-                    className="bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Gửi</span>
-                    <Send className="h-3 w-3" />
-                  </button>
                 </div>
               </div>
 
             </div>
-          </>
-        ) : (
+
+            {/* Right Side Helper Panel */}
+            <div className="space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-xs space-y-4">
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <HelpCircle className="h-4 w-4 text-brand-purple" />
+                  Gợi ý từ vựng & Cấu trúc
+                </h4>
+
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Mẫu câu gợi ý:</span>
+                  <p className="text-xs font-bold text-slate-700 leading-relaxed">
+                    "{questions[currentQuestionIndex]?.suggestedAnswer}"
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Từ khóa quan trọng:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {questions[currentQuestionIndex]?.targetPatterns.map((pat) => (
+                      <span key={pat} className="text-[10px] font-bold bg-white text-slate-600 px-2.5 py-1 rounded-lg border border-slate-200">
+                        {pat}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        ) : evalResultState ? (
           /* Speaking Test Completed Screen */
           <div className="bg-white rounded-3xl border border-slate-100 p-6 sm:p-10 shadow-lg space-y-8 animate-fade-in" id="speaking-results-panel">
             
@@ -1199,30 +899,30 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
               </div>
             </div>
 
-            {/* Overalls and scores display (VI) */}
+            {/* Overalls and scores display */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               
               <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl text-center flex flex-col justify-center items-center">
                 <span className="text-[10px] font-bold text-brand-primary uppercase tracking-wider block mb-1">Overall Score</span>
-                <span className="text-3xl font-black text-brand-primary">{overallScore}</span>
+                <span className="text-3xl font-black text-brand-primary">{evalResultState.overallScore}</span>
                 <span className="text-[9px] font-bold text-slate-400 block mt-0.5">/100 Điểm</span>
               </div>
 
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center flex flex-col justify-center items-center">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Pronunciation</span>
-                <span className="text-2xl font-extrabold text-slate-800">{avgPron}</span>
+                <span className="text-2xl font-extrabold text-slate-800">{evalResultState.pronunciationScore}</span>
                 <span className="text-[9px] font-bold text-slate-400 block mt-0.5">/100 Điểm 🗣️</span>
               </div>
 
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center flex flex-col justify-center items-center">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Grammar Target</span>
-                <span className="text-2xl font-extrabold text-slate-800">{avgGram}</span>
+                <span className="text-2xl font-extrabold text-slate-800">{evalResultState.grammarScore}</span>
                 <span className="text-[9px] font-bold text-slate-400 block mt-0.5">/100 Điểm 📝</span>
               </div>
 
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center flex flex-col justify-center items-center">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Response Speed</span>
-                <span className="text-2xl font-extrabold text-slate-800">{avgFlu}</span>
+                <span className="text-2xl font-extrabold text-slate-800">{evalResultState.fluencyScore}</span>
                 <span className="text-[9px] font-bold text-slate-400 block mt-0.5">/100 Điểm ⚡</span>
               </div>
 
@@ -1238,38 +938,40 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
                 </div>
               </div>
               <span className="text-sm font-black text-emerald-600 bg-white px-3 py-1.5 rounded-xl border border-emerald-100">
-                +{overallScore * 5} xu 🪙
+                +{evalResultState.overallScore * 5} xu 🪙
               </span>
             </div>
 
-            {/* Kid/Student feedback and improvements (VII) */}
+            {/* Kid/Student feedback and improvements */}
             <div className="bg-slate-50/50 border border-slate-100 p-5 rounded-2xl space-y-4">
               <div>
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Nhận xét từ Giáo viên AI Coach:</span>
                 <p className="text-sm font-extrabold text-slate-800 leading-relaxed">
-                  "Làm tốt lắm con yêu! Phát âm của con rất rõ ràng và chuẩn ngữ điệu Oxford. Con có khả năng ghi nhớ từ vựng vô cùng tuyệt vời!"
+                  "{evalResultState.feedback}"
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                 <div className="bg-white p-3.5 rounded-xl border border-slate-100/50">
                   <span className="text-[10px] font-extrabold text-emerald-600 uppercase block mb-1">💪 Điểm mạnh nổi bật</span>
-                  <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                    - Sử dụng từ vựng Oxford linh hoạt.<br />
-                    - Phát âm to, rõ ràng và có âm đuôi.
-                  </p>
+                  <div className="text-xs text-slate-600 leading-relaxed font-semibold space-y-1">
+                    {evalResultState.strengths.map((s: string, idx: number) => (
+                      <p key={idx}>• {s}</p>
+                    ))}
+                  </div>
                 </div>
                 <div className="bg-white p-3.5 rounded-xl border border-slate-100/50">
                   <span className="text-[10px] font-extrabold text-brand-primary uppercase block mb-1">🔑 Cần ôn tập thêm</span>
-                  <p className="text-xs text-slate-600 leading-relaxed font-semibold">
-                    - Chú ý chia đúng động từ ở thời quá khứ (Unit 4/5).<br />
-                    - Trả lời nhanh hơn một chút để cải thiện phản xạ.
-                  </p>
+                  <div className="text-xs text-slate-600 leading-relaxed font-semibold space-y-1">
+                    {evalResultState.weaknesses.map((w: string, idx: number) => (
+                      <p key={idx}>• {w}</p>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Parent & Teacher Report (VIII) */}
+            {/* Parent & Teacher Report */}
             <div className="bg-indigo-50/30 border border-indigo-100/50 p-5 rounded-3xl space-y-4">
               <div className="flex items-center space-x-2 text-indigo-800">
                 <FileText className="h-5 w-5" />
@@ -1279,8 +981,10 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
               <div className="space-y-2 text-xs text-slate-600 leading-relaxed">
                 <p>👩‍👦 <strong>Học viên:</strong> <span className="font-bold text-slate-800">{session.fullName}</span></p>
                 <p>📅 <strong>Ngày thực hiện:</strong> {new Date().toLocaleDateString('vi-VN')} tại lớp <strong>Anh ngữ LeeGo</strong></p>
-                <p>🎯 <strong>Phân tích chuyên sâu:</strong> Con đã hoàn thành xuất sắc cấu trúc Warm-up tự nhiên trước khi bước vào 7 câu hỏi chuyên đề từ vựng và ngữ pháp của Unit {activeUnit.number}. Độ tương thích mẫu câu đạt {avgGram}%, phát âm đạt {avgPron}% so với mô hình chuẩn Oxford.</p>
-                <p>📈 <strong>Gợi ý lộ trình:</strong> Tiếp tục ôn luyện các mẫu câu hội thoại giao tiếp của Unit {activeUnit.number}, cho bé nghe đĩa nghe Oxford Everybody Up 4 khoảng 10 phút mỗi ngày để tăng tốc độ phản xạ nói tự nhiên.</p>
+                <p>🎯 <strong>Phân tích chuyên sâu:</strong> Con đã hoàn thành xuất sắc cuộc hội thoại 10 câu của Unit {activeUnit.number}. Đánh giá cấu trúc ngữ pháp đạt {evalResultState.grammarScore}%, phát âm đạt {evalResultState.pronunciationScore}%, trôi chảy đạt {evalResultState.fluencyScore}%.</p>
+                {evalResultState.suggestedPractice && (
+                  <p>📈 <strong>Gợi ý lộ trình:</strong> {evalResultState.suggestedPractice}</p>
+                )}
               </div>
             </div>
 
@@ -1303,11 +1007,11 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
             </div>
 
           </div>
-        )}
+        ) : null}
 
       </div>
 
-      {/* Speaking Footer (XII) */}
+      {/* Speaking Footer */}
       <div className="bg-white border-t border-slate-100 py-3.5 px-6 mt-12 text-center text-[10px] text-slate-400 font-bold tracking-wider uppercase flex flex-col sm:flex-row justify-between items-center gap-2">
         <span>Anh ngữ LeeGo - Hotline: 0988.526.585</span>
         <span className="text-slate-500">Everybody Up 4 Student App</span>
