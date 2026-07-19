@@ -38,11 +38,11 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Missing conversation history" });
     }
 
-    console.log("Transcript:", JSON.stringify(history, null, 2));
+    console.log("[api/evaluate-speaking] Transcript:", JSON.stringify(history, null, 2));
 
     if (!ai) {
-      console.error("Gemini API key is not configured");
-      return res.json({ error: "Gemini API key missing", useFallback: true });
+      console.error("[api/evaluate-speaking] Gemini API key is not configured.");
+      return res.json({ useFallback: true, error: "Gemini API key missing" });
     }
 
     const promptText = `
@@ -87,7 +87,7 @@ Return strict JSON matching all 9 required fields:
 }
 `;
 
-    console.log("Gemini Request:", JSON.stringify({ promptText }, null, 2));
+    console.log("[api/evaluate-speaking] Gemini Request prompt prepared.");
 
     let attempts = 0;
     let result: any = null;
@@ -122,10 +122,10 @@ Return strict JSON matching all 9 required fields:
         });
 
         const rawText = response.text ? response.text.trim() : "";
-        console.log("Gemini Raw Response BEFORE JSON.parse:", rawText);
+        console.log("[api/evaluate-speaking] Gemini Raw Response:", rawText);
 
         if (!rawText) {
-          console.log("JSON parse failed");
+          console.warn(`[api/evaluate-speaking] Empty response on attempt ${attempts}.`);
           continue;
         }
 
@@ -133,8 +133,6 @@ Return strict JSON matching all 9 required fields:
 
         try {
           const parsed = JSON.parse(cleanedJsonText);
-          console.log("Parsed JSON:", JSON.stringify(parsed, null, 2));
-
           const requiredFields = [
             "overallScore", "pronunciationScore", "grammarScore", "fluencyScore",
             "feedback", "strengths", "weaknesses", "commonMistakes", "suggestedPractice"
@@ -143,29 +141,27 @@ Return strict JSON matching all 9 required fields:
           const hasAllFields = requiredFields.every(field => parsed[field] !== undefined && parsed[field] !== null);
 
           if (hasAllFields) {
-            console.log("Evaluation Object:", JSON.stringify(parsed, null, 2));
+            console.log("[api/evaluate-speaking] Valid Evaluation Object parsed.");
             result = parsed;
           } else {
-            console.warn(`Missing required fields on attempt ${attempts}. Retrying...`);
+            console.warn(`[api/evaluate-speaking] Missing required fields on attempt ${attempts}.`);
           }
         } catch (parseErr: any) {
-          console.error("JSON parse exception stack trace:", parseErr.stack || parseErr);
-          console.log("JSON parse failed:", parseErr.message || parseErr);
-          console.log("Gemini Raw Response:", rawText);
+          console.error("[api/evaluate-speaking] JSON parse exception:", parseErr.stack || parseErr);
         }
-      } catch (genErr) {
-        console.error("Gemini generateContent error:", genErr);
+      } catch (genErr: any) {
+        console.error("[api/evaluate-speaking] Gemini generateContent error:", genErr.stack || genErr);
       }
     }
 
     if (result) {
       return res.json(result);
     } else {
-      console.error("All Gemini evaluation attempts failed or returned incomplete schema.");
-      return res.json({ useFallback: true, error: "Failed to parse evaluation from Gemini" });
+      console.error("[api/evaluate-speaking] Gemini evaluation failed on all attempts.");
+      return res.json({ useFallback: true, error: "Failed to obtain evaluation from Gemini" });
     }
   } catch (err: any) {
-    console.error("Gemini evaluate-speaking handler error:", err.stack || err);
+    console.error("[api/evaluate-speaking] Handler exception:", err.stack || err);
     return res.json({ useFallback: true, error: "Internal Server Error" });
   }
 }
