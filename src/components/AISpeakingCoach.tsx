@@ -745,8 +745,10 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     let strengths: string[] = [];
     let weaknesses: string[] = [];
     let commonMistakes: string[] = [];
-    let suggestedCorrections: string[] = [];
+    let suggestedPracticeText = "";
     let usedAIEval = false;
+
+    console.log("Transcript:", JSON.stringify(finalLog, null, 2));
 
     try {
       const response = await fetch("/api/evaluate-speaking", {
@@ -760,21 +762,41 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Evaluation response:", data);
+        console.log("Gemini raw response:", JSON.stringify(data));
+        
         if (data && data.useFallback !== true) {
-          pronunciationScore = data.pronunciation || 85;
-          grammarScore = data.grammar || 85;
-          fluencyScore = data.fluency || 85;
-          vocabularyScore = data.vocabulary || 85;
-          overallScore = data.overallScore || 85;
+          pronunciationScore = data.pronunciationScore ?? data.pronunciation ?? 85;
+          grammarScore = data.grammarScore ?? data.grammar ?? 85;
+          fluencyScore = data.fluencyScore ?? data.fluency ?? 85;
+          overallScore = data.overallScore ?? Math.round((pronunciationScore + grammarScore + fluencyScore) / 3);
+          vocabularyScore = data.vocabularyScore ?? data.vocabulary ?? overallScore;
           feedbackText = data.feedback || "";
           strengths = data.strengths || [];
           weaknesses = data.weaknesses || [];
-          commonMistakes = data.corrections || [];
+          commonMistakes = data.commonMistakes || data.corrections || [];
+          suggestedPracticeText = data.suggestedPractice || "";
+
+          console.log("JSON parse success");
+          console.log("Parsed evaluation:", {
+            overallScore,
+            pronunciationScore,
+            grammarScore,
+            fluencyScore,
+            feedback: feedbackText,
+            strengths,
+            weaknesses,
+            commonMistakes,
+            suggestedPractice: suggestedPracticeText
+          });
           usedAIEval = true;
+        } else {
+          console.log("JSON parse failed");
         }
+      } else {
+        console.log("JSON parse failed");
       }
     } catch (err) {
+      console.log("JSON parse failed");
       console.error("Comprehensive speaking evaluation failed:", err);
     }
 
@@ -811,6 +833,10 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       reportText += `❌ **Lỗi thường gặp (Common Mistakes) / Gợi ý sửa:**\n`;
       commonMistakes.forEach(m => { reportText += `• ${m}\n`; });
       reportText += `\n`;
+    }
+
+    if (suggestedPracticeText) {
+      reportText += `💡 **Gợi ý luyện tập (Suggested Practice):**\n• ${suggestedPracticeText}\n`;
     }
 
     const reportMsg: ChatMessage = {
