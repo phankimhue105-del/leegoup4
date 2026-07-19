@@ -58,7 +58,7 @@ Format the response strictly matching this JSON schema:
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash",
       contents: promptText,
       config: {
         responseMimeType: "application/json",
