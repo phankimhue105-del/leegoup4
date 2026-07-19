@@ -208,11 +208,11 @@ Format the response strictly matching this JSON schema:
       console.log("Transcript:", JSON.stringify(history, null, 2));
 
       if (!ai) {
-        return res.status(500).json({ error: "Gemini API key missing", useFallback: true });
+        return res.json({ error: "Gemini API key missing", useFallback: true });
       }
 
       const promptText = `
-You are a strict, fair, and professional AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford).
+You are a strict, fair, and professional AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford) - Unit: "${unitId || 'General'}".
 You are evaluating a student's 10-question speaking performance.
 
 Here is the exact conversation log:
@@ -240,6 +240,8 @@ Return strict JSON matching all 9 required fields:
   "suggestedPractice": "Specific practice tips in Vietnamese"
 }
 `;
+
+      console.log("Gemini Request:", JSON.stringify({ promptText }, null, 2));
 
       let attempts = 0;
       let result: any = null;
@@ -274,16 +276,23 @@ Return strict JSON matching all 9 required fields:
           });
 
           const rawText = response.text ? response.text.trim() : "";
-          console.log("Gemini raw response:", rawText);
+          console.log("Gemini Raw Response BEFORE JSON.parse:", rawText);
 
           if (!rawText) {
             console.log("JSON parse failed");
             continue;
           }
 
+          // Strip markdown code fences (e.g. ```json ... ```) and extract JSON substring
+          let cleanJsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+          const jsonMatch = cleanJsonText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            cleanJsonText = jsonMatch[0];
+          }
+
           try {
-            const parsed = JSON.parse(rawText);
-            console.log("JSON parse success");
+            const parsed = JSON.parse(cleanJsonText);
+            console.log("Parsed JSON:", JSON.stringify(parsed, null, 2));
 
             const requiredFields = [
               "overallScore", "pronunciationScore", "grammarScore", "fluencyScore",
@@ -293,14 +302,15 @@ Return strict JSON matching all 9 required fields:
             const hasAllFields = requiredFields.every(field => parsed[field] !== undefined && parsed[field] !== null);
 
             if (hasAllFields) {
-              console.log("Parsed evaluation:", JSON.stringify(parsed, null, 2));
+              console.log("Evaluation Object:", JSON.stringify(parsed, null, 2));
               result = parsed;
             } else {
               console.warn(`Missing required fields on attempt ${attempts}. Retrying...`);
             }
-          } catch (parseErr) {
-            console.log("JSON parse failed");
-            console.log("Gemini raw response:", rawText);
+          } catch (parseErr: any) {
+            console.error("JSON parse exception stack trace:", parseErr.stack || parseErr);
+            console.log("JSON parse failed:", parseErr.message || parseErr);
+            console.log("Gemini Raw Response:", rawText);
           }
         } catch (genErr) {
           console.error("Gemini generateContent error:", genErr);
@@ -310,11 +320,12 @@ Return strict JSON matching all 9 required fields:
       if (result) {
         return res.json(result);
       } else {
-        return res.status(500).json({ error: "Failed to parse evaluation from Gemini", useFallback: true });
+        console.error("All Gemini evaluation attempts failed or returned incomplete schema.");
+        return res.json({ useFallback: true, error: "Failed to parse evaluation from Gemini" });
       }
-    } catch (err) {
-      console.error("Gemini local evaluate-speaking error:", err);
-      return res.status(500).json({ error: "Internal Server Error", useFallback: true });
+    } catch (err: any) {
+      console.error("Gemini local evaluate-speaking error:", err.stack || err);
+      return res.json({ useFallback: true, error: "Internal Server Error" });
     }
   });
 
