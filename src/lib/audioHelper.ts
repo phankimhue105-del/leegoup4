@@ -1,17 +1,20 @@
-// Initialize SpeechSynthesis voices immediately on file load for iOS WebKit compatibility
+// Initialize SpeechSynthesis voices immediately on file load for all browsers
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  window.speechSynthesis.getVoices();
-  if (window.speechSynthesis.onvoiceschanged !== undefined) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.getVoices();
-    };
-  }
+  try {
+    window.speechSynthesis.getVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        try {
+          window.speechSynthesis.getVoices();
+        } catch (e) {}
+      };
+    }
+  } catch (e) {}
 }
 
 /**
- * Universal speech player to fix iPhone (iOS Safari/Chrome) audio issues.
+ * Universal speech player for desktop, laptop, and mobile devices.
  * Uses native Web Speech API (SpeechSynthesis) with forced English voice selection.
- * Does not try to load local MP3 files or depend on third-party online services.
  */
 export const playWordAudio = (text: string): Promise<void> => {
   return new Promise((resolve) => {
@@ -33,24 +36,29 @@ export const playWordAudio = (text: string): Promise<void> => {
     }
 
     try {
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
       window.speechSynthesis.cancel();
+
       const utterance = new SpeechSynthesisUtterance(cleanedText);
       utterance.lang = 'en-US';
-      utterance.rate = 0.82; // Kid-friendly pace
+      utterance.rate = 0.85; // Natural pace for primary school learners
 
-      // English voice lookup: search specifically for an English voice
       const voices = window.speechSynthesis.getVoices();
-      const enVoice = voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('google')) ||
-                      voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('samantha')) ||
-                      voices.find(v => v.lang.startsWith('en-US')) ||
-                      voices.find(v => v.lang.startsWith('en-'));
-      if (enVoice) {
-        utterance.voice = enVoice;
+      if (voices.length > 0) {
+        const enVoice = voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('google')) ||
+                        voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('samantha')) ||
+                        voices.find(v => v.lang.startsWith('en-US')) ||
+                        voices.find(v => v.lang.startsWith('en-'));
+        if (enVoice) {
+          utterance.voice = enVoice;
+        }
       }
 
       utterance.onend = () => resolve();
       utterance.onerror = (e) => {
-        console.error("[playWordAudio] SpeechSynthesis utterance error:", e);
+        console.warn("[playWordAudio] Utterance error:", e);
         resolve();
       };
       
