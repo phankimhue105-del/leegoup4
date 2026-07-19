@@ -1,202 +1,88 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import express from "express";
+import createViteServer from "vite";
 import path from "path";
-import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { GoogleGenAI, Type } from "@google/genai";
 
 dotenv.config();
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(express.json());
+app.use(express.json());
 
-  // Initialize Gemini client on the server
-  const apiKey = process.env.GEMINI_API_KEY;
-  let ai: GoogleGenAI | null = null;
-  
-  if (apiKey && !apiKey.includes("MY_GEMINI_API_KEY")) {
-    ai = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
+// Initialize Gemini client
+const apiKey = process.env.GEMINI_API_KEY;
+let ai: GoogleGenAI | null = null;
+
+if (apiKey && !apiKey.includes("MY_GEMINI_API_KEY")) {
+  ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
       }
-    });
-  }
-
-  // API Route 1: Validate Sentence Builder with semantic analysis
-  app.post("/api/validate-sentence", async (req, res) => {
-    try {
-      const { question, prompt, correctAnswer, userAnswer, options } = req.body;
-      
-      if (!userAnswer || !correctAnswer) {
-        return res.status(400).json({ error: "Missing fields" });
-      }
-
-      if (!ai) {
-        return res.json({ useFallback: true });
-      }
-
-      const promptText = `
-You are an expert ESL (English as a Second Language) teacher checking a primary school student's answer in a "Sentence Builder" (scrambled words) game.
-Exercise details:
-- Question / Task: "${question}"
-- Target Meaning (in Vietnamese): "${prompt}"
-- Standard Reference Answer: "${correctAnswer}"
-- Available Words (options): ${JSON.stringify(options)}
-- Student's assembled answer: "${userAnswer}"
-
-Please analyze if the student's answer is grammatically correct, natural English, uses ONLY the words from the available options (ignoring minor punctuation differences), and matches the target meaning.
-Note: Students might omit or place a period/question mark at a different position. Be lenient with punctuation.
-If the student's answer has the same meaning and is grammatically correct (e.g. they arranged things in an alternative valid order like "I like reading and writing" instead of "I like writing and reading"), it must be marked as correct.
-
-Respond in strict JSON format matching this schema:
-{
-  "isCorrect": boolean,
-  "explanation": "Explain why in Vietnamese, encouraging and warm for a kid"
+    }
+  });
 }
-`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: promptText,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              isCorrect: { type: Type.BOOLEAN },
-              explanation: { type: Type.STRING }
-            },
-            required: ["isCorrect", "explanation"]
-          }
-        }
-      });
+function extractJsonString(rawText: string): string {
+  if (!rawText) return "";
+  let clean = rawText.trim();
+  clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const jsonMatch = clean.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    clean = jsonMatch[0];
+  }
+  return clean;
+}
 
-      if (response.text) {
-        const result = JSON.parse(response.text);
-        return res.json(result);
-      } else {
-        return res.json({ useFallback: true });
-      }
-    } catch (err) {
-      console.error("Gemini check-sentence error:", err);
-      return res.json({ useFallback: true });
-    }
-  });
-
-  // API Route: Speech to Text (transcribe)
-  app.post("/api/transcribe", async (req, res) => {
-    try {
-      const { audio, mimeType } = req.body;
-
-      if (!audio) {
-        return res.status(400).json({ error: "Missing audio data" });
-      }
-
-      if (!ai) {
-        return res.json({ useFallback: true, transcript: "" });
-      }
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [
-          {
-            inlineData: {
-              mimeType: mimeType || "audio/webm",
-              data: audio
-            }
-          },
-          {
-            text: "You are a precise speech-to-text transcriber for primary school students learning English. Listen to the audio and write down exactly what the speaker says in English. Do not add any punctuation, commentary, corrections, explanations, or assumptions. Output ONLY the English transcript of the spoken words."
-          }
-        ]
-      });
-
-      const transcriptText = response.text ? response.text.trim() : "";
-      return res.json({ transcript: transcriptText });
-    } catch (err) {
-      console.error("Transcription local route error:", err);
-      return res.status(500).json({ error: "Internal Server Error" });
-    }
-  });
-
-  // API Route: AI Teacher Chat Feedback
+async function startServer() {
+  // API Chat Endpoint for conversational AI responses between questions
   app.post("/api/chat", async (req, res) => {
     try {
       const { history, currentQuestion, nextQuestion } = req.body;
+      
+      if (!currentQuestion) {
+        return res.status(400).json({ error: "Missing currentQuestion" });
+      }
 
       if (!ai) {
-        return res.json({ 
-          useFallback: true, 
-          reply: "Good job!", 
-          nextQuestion: nextQuestion ? `Câu hỏi tiếp theo:\n\n💬 "${nextQuestion.question}"\n(${nextQuestion.vietnamesePrompt})` : "Chúc mừng con đã hoàn thành bài nói!" 
+        return res.json({
+          reply: "Good job! Let's continue to the next question.",
+          nextQuestion: nextQuestion ? `Câu hỏi tiếp theo:\n\n💬 "${nextQuestion.question}"\n(${nextQuestion.vietnamesePrompt})` : undefined
         });
       }
 
-      const studentAnswer = history && history.length > 0 ? history[history.length - 1].answer : "";
-
-      let nextQuestionInstruction = "";
-      if (nextQuestion) {
-        nextQuestionInstruction = `introduce the next question: "${nextQuestion.question}" (with its Vietnamese helper translation: "${nextQuestion.vietnamesePrompt}"). Formulate it nicely so the student knows it's the next question.`;
-      } else {
-        nextQuestionInstruction = `state that this was the last question, congratulate the student warmly in Vietnamese, and say that you are now compiling the final speaking report.`;
-      }
-
       const promptText = `
-You are a friendly, encouraging AI English Teacher for primary school students studying "Everybody Up 4" (Oxford).
-You are in the middle of a speaking test conversation.
-- Question asked: "${currentQuestion.question}"
-- Target Expected Answer: "${currentQuestion.suggestedAnswer}"
-- Student's spoken response: "${studentAnswer}"
+You are a friendly, encouraging AI English Teacher for a primary school student studying "Everybody Up 4" (Oxford).
+The student just answered: "${history[history.length - 1]?.answer || ''}" to the question: "${currentQuestion.question}".
 
-Please review the student's response. Give a short, encouraging teacher comment in Vietnamese (warm and friendly for a kid, maximum 2 sentences) commenting on how they did.
-Then, ${nextQuestionInstruction}
-
-Format the response strictly matching this JSON schema:
-{
-  "reply": "Short encouraging teacher comment in Vietnamese",
-  "nextQuestion": "The next question formulated clearly with its Vietnamese translation, or graduation message if completed"
-}
+Give a very short (1-2 sentences), encouraging reply in Vietnamese with 1 English praise phrase.
+Do NOT give scores or full evaluations yet. Just praise them and encourage them.
 `;
 
       const response = await ai.models.generateContent({
         model: "gemini-2.0-flash",
-        contents: promptText,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              reply: { type: Type.STRING },
-              nextQuestion: { type: Type.STRING }
-            },
-            required: ["reply", "nextQuestion"]
-          }
-        }
+        contents: promptText
       });
 
-      if (response.text) {
-        const result = JSON.parse(response.text);
-        return res.json(result);
-      } else {
-        return res.json({ useFallback: true });
-      }
-    } catch (err) {
-      console.error("Chat local route error:", err);
-      return res.status(500).json({ error: "Internal Server Error" });
+      const reply = response.text ? response.text.trim() : "Con làm tốt lắm! Hút thở sâu và trả lời câu tiếp theo nhé!";
+
+      return res.json({
+        reply,
+        nextQuestion: nextQuestion ? `Câu hỏi tiếp theo:\n\n💬 "${nextQuestion.question}"\n(${nextQuestion.vietnamesePrompt})` : undefined
+      });
+    } catch (err: any) {
+      console.error("[server.ts /api/chat] Error:", err);
+      return res.json({
+        reply: "Rất tốt! Con hãy tiếp tục phát huy nhé!",
+        nextQuestion: req.body.nextQuestion ? `Câu hỏi tiếp theo:\n\n💬 "${req.body.nextQuestion.question}"\n(${req.body.nextQuestion.vietnamesePrompt})` : undefined
+      });
     }
   });
 
-  // API Route: Comprehensive speaking evaluation
+  // API Speaking Evaluation Endpoint
   app.post("/api/evaluate-speaking", async (req, res) => {
     try {
       const { history, unitId } = req.body;
@@ -205,10 +91,11 @@ Format the response strictly matching this JSON schema:
         return res.status(400).json({ error: "Missing conversation history" });
       }
 
-      console.log("Transcript:", JSON.stringify(history, null, 2));
+      console.log("[server.ts /api/evaluate-speaking] Transcript:", JSON.stringify(history, null, 2));
 
       if (!ai) {
-        return res.json({ error: "Gemini API key missing", useFallback: true });
+        console.error("[server.ts /api/evaluate-speaking] Gemini API key missing.");
+        return res.json({ useFallback: true, error: "Gemini API key missing" });
       }
 
       const promptText = `
@@ -253,7 +140,7 @@ Return strict JSON matching all 9 required fields:
 }
 `;
 
-      console.log("Gemini Request:", JSON.stringify({ promptText }, null, 2));
+      console.log("[server.ts /api/evaluate-speaking] Gemini Request prompt prepared.");
 
       let attempts = 0;
       let result: any = null;
@@ -288,24 +175,17 @@ Return strict JSON matching all 9 required fields:
           });
 
           const rawText = response.text ? response.text.trim() : "";
-          console.log("Gemini Raw Response BEFORE JSON.parse:", rawText);
+          console.log("[server.ts /api/evaluate-speaking] Gemini Raw Response:", rawText);
 
           if (!rawText) {
-            console.log("JSON parse failed");
+            console.warn(`[server.ts /api/evaluate-speaking] Empty response on attempt ${attempts}.`);
             continue;
           }
 
-          // Strip markdown code fences (e.g. ```json ... ```) and extract JSON substring
-          let cleanJsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-          const jsonMatch = cleanJsonText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            cleanJsonText = jsonMatch[0];
-          }
+          const cleanedJsonText = extractJsonString(rawText);
 
           try {
-            const parsed = JSON.parse(cleanJsonText);
-            console.log("Parsed JSON:", JSON.stringify(parsed, null, 2));
-
+            const parsed = JSON.parse(cleanedJsonText);
             const requiredFields = [
               "overallScore", "pronunciationScore", "grammarScore", "fluencyScore",
               "feedback", "strengths", "weaknesses", "commonMistakes", "suggestedPractice"
@@ -314,29 +194,27 @@ Return strict JSON matching all 9 required fields:
             const hasAllFields = requiredFields.every(field => parsed[field] !== undefined && parsed[field] !== null);
 
             if (hasAllFields) {
-              console.log("Evaluation Object:", JSON.stringify(parsed, null, 2));
+              console.log("[server.ts /api/evaluate-speaking] Valid Evaluation Object parsed.");
               result = parsed;
             } else {
-              console.warn(`Missing required fields on attempt ${attempts}. Retrying...`);
+              console.warn(`[server.ts /api/evaluate-speaking] Missing required fields on attempt ${attempts}.`);
             }
           } catch (parseErr: any) {
-            console.error("JSON parse exception stack trace:", parseErr.stack || parseErr);
-            console.log("JSON parse failed:", parseErr.message || parseErr);
-            console.log("Gemini Raw Response:", rawText);
+            console.error("[server.ts /api/evaluate-speaking] JSON parse exception:", parseErr.stack || parseErr);
           }
-        } catch (genErr) {
-          console.error("Gemini generateContent error:", genErr);
+        } catch (genErr: any) {
+          console.error("[server.ts /api/evaluate-speaking] Gemini generateContent error:", genErr.stack || genErr);
         }
       }
 
       if (result) {
         return res.json(result);
       } else {
-        console.error("All Gemini evaluation attempts failed or returned incomplete schema.");
-        return res.json({ useFallback: true, error: "Failed to parse evaluation from Gemini" });
+        console.error("[server.ts /api/evaluate-speaking] Gemini evaluation failed on all attempts.");
+        return res.json({ useFallback: true, error: "Failed to obtain evaluation from Gemini" });
       }
     } catch (err: any) {
-      console.error("Gemini local evaluate-speaking error:", err.stack || err);
+      console.error("[server.ts /api/evaluate-speaking] Handler exception:", err.stack || err);
       return res.json({ useFallback: true, error: "Internal Server Error" });
     }
   });
