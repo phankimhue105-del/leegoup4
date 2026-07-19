@@ -424,6 +424,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const processAnswer = async (customText?: string) => {
     const finalAnswer = (customText || transcript || simulationText || '').trim();
     
+    // Require real typed input - NEVER auto-insert suggested answer!
     if (!finalAnswer) {
       console.warn("[AISpeakingCoach] Empty text answer submitted. Stopping pipeline.");
       alert("Bé hãy gõ hoặc nói câu trả lời của mình nhé! (Please record or type your answer.)");
@@ -432,8 +433,11 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     setIsProcessing(true);
 
+    const currentQIndex = answersLog.length;
+    const currentQ = questions[currentQIndex] || questions[0];
+
     const studentMsg: ChatMessage = {
-      id: `student-${currentQuestionIndex}`,
+      id: `student-${currentQIndex}`,
       sender: 'student',
       text: finalAnswer,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -441,13 +445,14 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     setChatLog(prev => [...prev, studentMsg]);
 
-    const currentQ = questions[currentQuestionIndex];
     const answerItem = { question: currentQ.question, answer: finalAnswer };
     const updatedLog = [...answersLog, answerItem];
     setAnswersLog(updatedLog);
 
+    const nextIdx = updatedLog.length;
+    const nextQ = nextIdx < questions.length ? questions[nextIdx] : null;
+
     try {
-      const nextQ = currentQuestionIndex + 1 < questions.length ? questions[currentQuestionIndex + 1] : null;
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -464,65 +469,40 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
         if (chatData.reply) {
           const teacherReplyMsg: ChatMessage = {
-            id: `ai-reply-${currentQuestionIndex}`,
+            id: `ai-reply-${currentQIndex}`,
             sender: 'ai',
             text: chatData.reply,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
           setChatLog(prev => [...prev, teacherReplyMsg]);
         }
-
-        setTimeout(() => {
-          const nextIdx = currentQuestionIndex + 1;
-          if (nextIdx < questions.length) {
-            setCurrentQuestionIndex(nextIdx);
-
-            const nextQMsg: ChatMessage = {
-              id: `ai-q-${nextIdx}`,
-              sender: 'ai',
-              text: chatData.nextQuestion || `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${questions[nextIdx].question}"\n(${questions[nextIdx].vietnamesePrompt})`,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-
-            setChatLog(prev => [...prev, nextQMsg]);
-            speakText(questions[nextIdx].question);
-            setTranscript('');
-            setSimulationText('');
-            setIsProcessing(false);
-            startTimeRef.current = Date.now();
-          } else {
-            runComprehensiveEvaluation(updatedLog);
-          }
-        }, 1500);
-      } else {
-        throw new Error("Chat API failed");
       }
     } catch (err) {
       console.error("AI Teacher chat generation error:", err);
-      setTimeout(() => {
-        const nextIdx = currentQuestionIndex + 1;
-        if (nextIdx < questions.length) {
-          setCurrentQuestionIndex(nextIdx);
-          const nextQ = questions[nextIdx];
-
-          const nextQMsg: ChatMessage = {
-            id: `ai-q-${nextIdx}`,
-            sender: 'ai',
-            text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-
-          setChatLog(prev => [...prev, nextQMsg]);
-          speakText(nextQ.question);
-          setTranscript('');
-          setSimulationText('');
-          setIsProcessing(false);
-          startTimeRef.current = Date.now();
-        } else {
-          runComprehensiveEvaluation(updatedLog);
-        }
-      }, 1500);
     }
+
+    // Advance to next question or run comprehensive evaluation
+    setTimeout(() => {
+      if (nextIdx < questions.length) {
+        setCurrentQuestionIndex(nextIdx);
+
+        const nextQMsg: ChatMessage = {
+          id: `ai-q-${nextIdx}`,
+          sender: 'ai',
+          text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${questions[nextIdx].question}"\n(${questions[nextIdx].vietnamesePrompt})`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        setChatLog(prev => [...prev, nextQMsg]);
+        speakText(questions[nextIdx].question);
+        setTranscript('');
+        setSimulationText('');
+        setIsProcessing(false);
+        startTimeRef.current = Date.now();
+      } else {
+        runComprehensiveEvaluation(updatedLog);
+      }
+    }, 1200);
   };
 
   const runComprehensiveEvaluation = async (finalLog: { question: string, answer: string }[]) => {
