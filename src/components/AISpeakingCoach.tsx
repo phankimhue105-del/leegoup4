@@ -24,6 +24,7 @@ interface ChatMessage {
   sender: 'ai' | 'student';
   text: string;
   timestamp: string;
+  imageUrl?: string | null;
   evaluation?: {
     pronunciation: number;
     grammar: number;
@@ -324,13 +325,15 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     setTextInput('');
     setAnswersLog([]);
     
-    // Welcome message from AI
+    // Welcome message from AI with context image if applicable
     const firstQ = questions[0];
+    const firstImg = getQuestionImage(firstQ.question);
     const welcomeMsg: ChatMessage = {
       id: 'welcome',
       sender: 'ai',
       text: `Chào con yêu! Thầy cô là AI Speaking Coach của con! 🤖 Chúng ta cùng luyện nói tiếng Anh nhé. Đừng lo lắng, hãy cứ tự tin trả lời thật to rõ ràng. Dưới đây là câu hỏi đầu tiên dành cho con:\n\n💬 "${firstQ.question}"\n(${firstQ.vietnamesePrompt})`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      imageUrl: firstImg
     };
     setChatLog([welcomeMsg]);
     
@@ -367,12 +370,13 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     try {
       const recognition = new SpeechRecognition();
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPhone|iPad|iPod/.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || isIOS;
       
-      // Continuous mode is disabled on Mobile & Safari to ensure reliable onend events
+      // Continuous & interim settings optimized for Safari iOS compatibility
       recognition.continuous = !isMobile && !isSafari;
-      recognition.interimResults = true;
+      recognition.interimResults = !isIOS;
       recognition.lang = 'en-US';
 
       recognition.onstart = () => {
@@ -532,15 +536,19 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       if (nextIdx < questions.length) {
         setCurrentQuestionIndex(nextIdx);
 
+        const nextQObj = questions[nextIdx];
+        const qImg = getQuestionImage(nextQObj.question);
+
         const nextQMsg: ChatMessage = {
           id: `ai-q-${nextIdx}`,
           sender: 'ai',
-          text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${questions[nextIdx].question}"\n(${questions[nextIdx].vietnamesePrompt})`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQObj.question}"\n(${nextQObj.vietnamesePrompt})`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          imageUrl: qImg
         };
 
         setChatLog(prev => [...prev, nextQMsg]);
-        speakText(questions[nextIdx].question);
+        speakText(nextQObj.question);
         setTranscript('');
         setTextInput('');
         setIsProcessing(false);
@@ -578,12 +586,12 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       if (response.ok) {
         const data = await response.json();
         
-        if (data && data.useFallback !== true) {
+        if (data && data.useFallback !== true && (data.overallScore !== undefined || data.overall !== undefined)) {
           const evalObj = {
-            overallScore: Number(data.overallScore),
-            pronunciationScore: Number(data.pronunciationScore ?? data.pronunciation),
-            grammarScore: Number(data.grammarScore ?? data.grammar),
-            fluencyScore: Number(data.fluencyScore ?? data.fluency),
+            overallScore: Number(data.overallScore ?? data.overall ?? 85),
+            pronunciationScore: Number(data.pronunciationScore ?? data.pronunciation ?? 85),
+            grammarScore: Number(data.grammarScore ?? data.grammar ?? 85),
+            fluencyScore: Number(data.fluencyScore ?? data.fluency ?? 85),
             feedback: data.feedback || "",
             strengths: Array.isArray(data.strengths) ? data.strengths : [],
             weaknesses: Array.isArray(data.weaknesses) ? data.weaknesses : [],
@@ -807,6 +815,17 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
                         </span>
                         <span>{msg.timestamp}</span>
                       </div>
+
+                      {/* Render question context image directly inside AI Chat bubble for mobile & desktop visibility */}
+                      {msg.sender === 'ai' && msg.imageUrl && (
+                        <div className="mb-3 rounded-xl overflow-hidden border border-slate-200/60 shadow-xs">
+                          <img 
+                            src={msg.imageUrl} 
+                            alt="Question Context Visual" 
+                            className="w-full h-44 object-cover"
+                          />
+                        </div>
+                      )}
 
                       <p className="text-xs sm:text-sm font-semibold whitespace-pre-line leading-relaxed">
                         {msg.text}
