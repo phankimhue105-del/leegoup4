@@ -107,7 +107,7 @@ Respond in strict JSON format matching this schema:
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         contents: [
           {
             inlineData: {
@@ -169,7 +169,7 @@ Format the response strictly matching this JSON schema:
 `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash",
         contents: promptText,
         config: {
           responseMimeType: "application/json",
@@ -205,74 +205,116 @@ Format the response strictly matching this JSON schema:
         return res.status(400).json({ error: "Missing conversation history" });
       }
 
+      console.log("Transcript:", JSON.stringify(history, null, 2));
+
       if (!ai) {
-        return res.json({ useFallback: true });
+        return res.status(500).json({ error: "Gemini API key missing", useFallback: true });
       }
 
       const promptText = `
-You are a friendly, expert AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford).
-You have just conducted a 10-question speaking test with a student.
-Here is the entire conversation log:
-${history.map((h: any, i: number) => `Q${i + 1}: ${h.question}\nStudent's Answer: ${h.answer}`).join('\n\n')}
+You are a strict, fair, and professional AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford).
+You are evaluating a student's 10-question speaking performance.
 
-Please provide a comprehensive evaluation of the student's performance. Assess:
-1. Pronunciation (clear articulation, syllable stress, native comparison)
-2. Grammar (proper structure usage, word order, verb forms)
-3. Fluency (flow, rate of speech, sentence links)
-4. Vocabulary usage (appropriate word choice matching Everybody Up 4 themes)
-5. Overall communication (meaning transmission, response relevance)
+Here is the exact conversation log:
+${history.map((h: any, i: number) => `Q${i + 1}: ${h.question}\nStudent's Spoken Answer: "${h.answer}"`).join('\n\n')}
 
-Identify any common spelling/grammar mistakes they made in their answers, and suggest correct versions in corrections.
+EVALUATION RULES:
+1. DYNAMIC REALISTIC SCORING:
+   - Excellent English answers matching the question prompt: Score 85 - 100.
+   - Good or simple English answers with minor errors: Score 65 - 84.
+   - Irrelevant, random nonsensical words (e.g., "Banana elephant book"), incorrect answers, or missing answers: Score 30 - 60.
+   - DO NOT give generic 85 scores unless the performance genuinely matches 85/100.
+2. DYNAMIC FEEDBACK:
+   - "feedback", "strengths", "weaknesses", "commonMistakes", and "suggestedPractice" MUST directly reference specific sentences spoken by the student.
 
-Respond in strict JSON matching this schema:
+Return strict JSON matching all 9 required fields:
 {
-  "overallScore": integer (50-100),
-  "pronunciation": integer (50-100),
-  "grammar": integer (50-100),
-  "vocabulary": integer (50-100),
-  "fluency": integer (50-100),
-  "strengths": ["list of 2-3 strengths in Vietnamese"],
-  "weaknesses": ["list of 2-3 areas of improvement in Vietnamese"],
-  "corrections": ["list of incorrect student sentences with explanation of errors in Vietnamese"],
-  "feedback": "Detailed encouraging feedback in Vietnamese directly to the child"
+  "overallScore": integer (30-100),
+  "pronunciationScore": integer (30-100),
+  "grammarScore": integer (30-100),
+  "fluencyScore": integer (30-100),
+  "feedback": "Detailed encouraging feedback in Vietnamese mentioning their specific performance",
+  "strengths": ["list of specific strengths in Vietnamese based on their actual spoken answers"],
+  "weaknesses": ["list of specific weaknesses in Vietnamese based on their actual spoken answers"],
+  "commonMistakes": ["list of specific mistakes or incorrect sentences spoken by the student"],
+  "suggestedPractice": "Specific practice tips in Vietnamese"
 }
 `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: promptText,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              overallScore: { type: Type.INTEGER },
-              pronunciation: { type: Type.INTEGER },
-              grammar: { type: Type.INTEGER },
-              vocabulary: { type: Type.INTEGER },
-              fluency: { type: Type.INTEGER },
-              strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-              weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
-              corrections: { type: Type.ARRAY, items: { type: Type.STRING } },
-              feedback: { type: Type.STRING }
-            },
-            required: [
-              "overallScore", "pronunciation", "grammar", "vocabulary", "fluency", 
-              "strengths", "weaknesses", "corrections", "feedback"
-            ]
-          }
-        }
-      });
+      let attempts = 0;
+      let result: any = null;
 
-      if (response.text) {
-        const result = JSON.parse(response.text);
+      while (attempts < 2 && !result) {
+        attempts++;
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-2.0-flash",
+            contents: promptText,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  overallScore: { type: Type.INTEGER },
+                  pronunciationScore: { type: Type.INTEGER },
+                  grammarScore: { type: Type.INTEGER },
+                  fluencyScore: { type: Type.INTEGER },
+                  feedback: { type: Type.STRING },
+                  strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  commonMistakes: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  suggestedPractice: { type: Type.STRING }
+                },
+                required: [
+                  "overallScore", "pronunciationScore", "grammarScore", "fluencyScore",
+                  "feedback", "strengths", "weaknesses", "commonMistakes", "suggestedPractice"
+                ]
+              }
+            }
+          });
+
+          const rawText = response.text ? response.text.trim() : "";
+          console.log("Gemini raw response:", rawText);
+
+          if (!rawText) {
+            console.log("JSON parse failed");
+            continue;
+          }
+
+          try {
+            const parsed = JSON.parse(rawText);
+            console.log("JSON parse success");
+
+            const requiredFields = [
+              "overallScore", "pronunciationScore", "grammarScore", "fluencyScore",
+              "feedback", "strengths", "weaknesses", "commonMistakes", "suggestedPractice"
+            ];
+
+            const hasAllFields = requiredFields.every(field => parsed[field] !== undefined && parsed[field] !== null);
+
+            if (hasAllFields) {
+              console.log("Parsed evaluation:", JSON.stringify(parsed, null, 2));
+              result = parsed;
+            } else {
+              console.warn(`Missing required fields on attempt ${attempts}. Retrying...`);
+            }
+          } catch (parseErr) {
+            console.log("JSON parse failed");
+            console.log("Gemini raw response:", rawText);
+          }
+        } catch (genErr) {
+          console.error("Gemini generateContent error:", genErr);
+        }
+      }
+
+      if (result) {
         return res.json(result);
       } else {
-        return res.json({ useFallback: true });
+        return res.status(500).json({ error: "Failed to parse evaluation from Gemini", useFallback: true });
       }
     } catch (err) {
       console.error("Gemini local evaluate-speaking error:", err);
-      return res.status(500).json({ error: "Internal Server Error" });
+      return res.status(500).json({ error: "Internal Server Error", useFallback: true });
     }
   });
 
