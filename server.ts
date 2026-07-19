@@ -2,7 +2,7 @@ import express from "express";
 import createViteServer from "vite";
 import path from "path";
 import dotenv from "dotenv";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
@@ -22,59 +22,100 @@ function extractJsonString(rawText: string): string {
   return clean;
 }
 
-// Simple primary school evaluation engine based on Grammar, Vocabulary & Response Speed
+// Strict relevance & grammar checker for primary school speaking answers
 function evaluateSpeakingLocally(history: any[], unitId: string) {
   let validAnswers = 0;
+  let relevantAnswers = 0;
   let wordCountTotal = 0;
-  let grammarMatches = 0;
-  let sampleAnswer = "";
+  let irrelevantSample = "";
+  let irrelevantQuestion = "";
+  let validSample = "";
 
   history.forEach((item: any) => {
-    const ans = (item.answer || "").trim();
+    const qText = (item.question || "").toLowerCase();
+    const ans = (item.answer || "").trim().toLowerCase();
+
     if (ans.length > 0) {
       validAnswers++;
       const words = ans.split(/\s+/);
       wordCountTotal += words.length;
-      if (!sampleAnswer && words.length > 1) {
-        sampleAnswer = ans;
+
+      let isRelevant = true;
+
+      // 1. Age question ("how old")
+      if (qText.includes("how old")) {
+        const hasAgeWord = /\b(nine|ten|eleven|twelve|eight|seven|six|years|old|[0-9]+)\b/i.test(ans) || /^i'm\s+[0-9]+/i.test(ans);
+        const isAnimalOrFood = /\b(dog|cat|apple|banana|car|fish|bird)\b/i.test(ans);
+        if (!hasAgeWord || isAnimalOrFood) {
+          isRelevant = false;
+        }
       }
-      if (/^i\b|^my\b|^she\b|^he\b|^they\b|^yes\b|^no\b|^it\b/i.test(ans) || words.length >= 3) {
-        grammarMatches++;
+      // 2. Name question ("what is your name" / "what's your name")
+      else if (qText.includes("name")) {
+        const isIrrelevantWord = /\b(dog|cat|apple|banana|car|yes|no)\b/i.test(ans) && !ans.includes("my name");
+        if (isIrrelevantWord) {
+          isRelevant = false;
+        }
+      }
+      // 3. Feeling question ("how are you")
+      else if (qText.includes("how are you") || qText.includes("feeling")) {
+        const hasFeelingWord = /\b(happy|great|good|fine|ok|well|sad|tired)\b/i.test(ans);
+        const isAnimalOrFood = /\b(dog|cat|apple|banana|car|nine|ten)\b/i.test(ans);
+        if (!hasFeelingWord && isAnimalOrFood) {
+          isRelevant = false;
+        }
+      }
+      // 4. General question matching
+      else {
+        if (words.length === 1 && /\b(dog|cat|apple|banana|car|bird)\b/i.test(ans) && !qText.includes("animal") && !qText.includes("food")) {
+          isRelevant = false;
+        }
+      }
+
+      if (isRelevant) {
+        relevantAnswers++;
+        if (!validSample) validSample = item.answer;
+      } else {
+        if (!irrelevantSample) {
+          irrelevantSample = item.answer;
+          irrelevantQuestion = item.question;
+        }
       }
     }
   });
 
-  const completionRatio = Math.min(1, validAnswers / Math.max(1, history.length));
-  const avgWords = validAnswers > 0 ? wordCountTotal / validAnswers : 0;
+  const totalQ = Math.max(1, history.length);
+  const relevanceRatio = relevantAnswers / totalQ;
 
-  const grammarScore = Math.min(100, Math.max(50, Math.round(60 + (grammarMatches / Math.max(1, history.length)) * 35)));
-  const pronunciationScore = Math.min(100, Math.max(55, Math.round(65 + Math.min(avgWords * 6, 30))));
-  const fluencyScore = Math.min(100, Math.max(50, Math.round(60 + completionRatio * 35)));
-  const overallScore = Math.min(100, Math.max(50, Math.round(grammarScore * 0.35 + pronunciationScore * 0.35 + fluencyScore * 0.30)));
+  // Severe penalty for irrelevant/off-topic answers
+  const grammarScore = Math.min(100, Math.max(40, Math.round(relevanceRatio * 95)));
+  const pronunciationScore = Math.min(100, Math.max(45, Math.round(50 + (relevantAnswers / totalQ) * 45)));
+  const fluencyScore = Math.min(100, Math.max(40, Math.round(45 + (validAnswers / totalQ) * 50)));
+  const overallScore = Math.min(100, Math.max(40, Math.round(grammarScore * 0.40 + pronunciationScore * 0.35 + fluencyScore * 0.25)));
 
-  const strengths = [];
-  const weaknesses = [];
+  const strengths: string[] = [];
+  const weaknesses: string[] = [];
+  const commonMistakes: string[] = [];
 
-  if (grammarScore >= 80) {
-    strengths.push("Sử dụng đúng cấu trúc câu cơ bản của bài học Everybody Up 4.");
+  if (relevanceRatio >= 0.8) {
+    strengths.push("Trả lời đúng trọng tâm các câu hỏi trong bài học.");
+    strengths.push("Sử dụng cấu trúc câu phù hợp với chương trình Everybody Up 4.");
   } else {
-    weaknesses.push("Cần chú ý trả lời thành câu hoàn chỉnh thay vì chỉ dùng từ đơn.");
+    weaknesses.push("Trừ điểm ngữ pháp nặng do có câu trả lời không đúng nội dung câu hỏi.");
   }
 
-  if (pronunciationScore >= 80) {
-    strengths.push("Từ vựng phát âm tương đối rõ ràng và đúng chủ đề.");
-  } else {
-    weaknesses.push("Luyện tập phát âm chuẩn hơn các từ mới trong Unit.");
+  if (irrelevantSample) {
+    weaknesses.push(`Cần chú ý không trả lời từ không liên quan (ví dụ: nói "${irrelevantSample}" cho câu hỏi "${irrelevantQuestion}").`);
+    commonMistakes.push(`Trả lời không đúng trọng tâm: "${irrelevantSample}" (Hỏi: ${irrelevantQuestion})`);
   }
 
-  if (fluencyScore >= 80) {
-    strengths.push("Phản xạ trả lời tốt, hoàn thành đầy đủ các câu hỏi.");
-  } else {
-    weaknesses.push("Rèn luyện phản xạ nói nhanh hơn để tăng sự tự tin.");
+  if (validSample) {
+    strengths.push(`Trả lời tốt câu: "${validSample}".`);
   }
 
-  const feedbackQuote = sampleAnswer ? ` (ví dụ: "${sampleAnswer}")` : "";
-  const feedback = `Con đã hoàn thành ${validAnswers}/${history.length} câu hỏi. Trả lời khá tự tin${feedbackQuote}. Hãy tiếp tục phát huy nhé!`;
+  const feedback = irrelevantSample
+    ? `Con đã trả lời ${validAnswers}/${totalQ} câu hỏi, tuy nhiên có câu trả lời chưa đúng nội dung như "${irrelevantSample}". Con chú ý lắng nghe kỹ câu hỏi nhé!`
+    : `Con đã làm rất tốt bài nói với ${relevantAnswers}/${totalQ} câu trả lời đúng trọng tâm! Hãy tiếp tục phát huy nhé.`;
 
   return {
     overallScore,
@@ -82,10 +123,10 @@ function evaluateSpeakingLocally(history: any[], unitId: string) {
     grammarScore,
     fluencyScore,
     feedback,
-    strengths: strengths.length > 0 ? strengths : ["Con có tinh thần luyện tập nói tiếng Anh rất tốt!"],
-    weaknesses: weaknesses.length > 0 ? weaknesses : ["Hãy mở rộng câu trả lời dài hơn một chút."],
-    commonMistakes: sampleAnswer ? [`Câu trả lời tiêu biểu: "${sampleAnswer}"`] : ["Chú ý phát âm rõ âm đuôi (ending sounds)."],
-    suggestedPractice: `Luyện tập nói lại các câu hỏi của Unit ${unitId || ''} 10 phút mỗi ngày.`
+    strengths: strengths.length > 0 ? strengths : ["Con có tinh thần học tập tích cực."],
+    weaknesses: weaknesses.length > 0 ? weaknesses : ["Hãy tập luyện trả lời thành câu dài hơn."],
+    commonMistakes: commonMistakes.length > 0 ? commonMistakes : ["Chú ý phát âm rõ các âm đuôi."],
+    suggestedPractice: `Luyện tập trả lời đúng trọng tâm các câu hỏi của Unit ${unitId || ''}.`
   };
 }
 
@@ -126,23 +167,25 @@ async function startServer() {
       if (client) {
         try {
           const promptText = `
-You are an encouraging AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford) - Unit: "${unitId || 'General'}".
-Evaluate the student's 10-question speaking performance based on Grammar, Vocabulary, and Fluency.
+You are a strict AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford) - Unit: "${unitId || 'General'}".
+
+CRITICAL GRADING RULE:
+- If a student answers an irrelevant word (e.g. answering "dog" or "cat" when asked "How old are you?"), GIVE 0 POINTS for relevance & grammar on that question and HEAVILY PENALIZE the Grammar Score!
 
 Conversation log:
 ${history.map((h: any, i: number) => `Q${i + 1}: ${h.question}\nStudent: "${h.answer}"`).join('\n\n')}
 
 Return strict JSON:
 {
-  "overallScore": integer (50-100),
-  "pronunciationScore": integer (50-100),
-  "grammarScore": integer (50-100),
-  "fluencyScore": integer (50-100),
-  "feedback": "Encouraging feedback in Vietnamese with student answer quote",
+  "overallScore": integer (40-100),
+  "pronunciationScore": integer (40-100),
+  "grammarScore": integer (40-100),
+  "fluencyScore": integer (40-100),
+  "feedback": "Feedback in Vietnamese noting any off-topic answers",
   "strengths": ["One strength in Vietnamese"],
-  "weaknesses": ["One weakness in Vietnamese"],
-  "commonMistakes": ["One example error or sentence to improve"],
-  "suggestedPractice": "One suggestion in Vietnamese"
+  "weaknesses": ["One weakness in Vietnamese noting off-topic penalties if any"],
+  "commonMistakes": ["List off-topic or grammar mistakes"],
+  "suggestedPractice": "One practice suggestion in Vietnamese"
 }
 `;
 
@@ -167,18 +210,17 @@ Return strict JSON:
                 fluencyScore: Number(parsed.fluencyScore ?? parsed.fluency ?? overall),
                 feedback: parsed.feedback || "Con đã cố gắng hoàn thành bài nói!",
                 strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ["Phản xạ nói tự tin"],
-                weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : ["Cần chú ý phát âm chuẩn hơn"],
+                weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : ["Chú ý trả lời đúng trọng tâm"],
                 commonMistakes: Array.isArray(parsed.commonMistakes) ? parsed.commonMistakes : [],
                 suggestedPractice: parsed.suggestedPractice || "Luyện nói 10 phút mỗi ngày"
               });
             }
           }
         } catch (gemErr: any) {
-          console.warn("[server.ts /api/evaluate-speaking] Gemini error, using local evaluation engine:", gemErr.message || gemErr);
+          console.warn("[server.ts /api/evaluate-speaking] Gemini error, using strict local evaluation:", gemErr.message || gemErr);
         }
       }
 
-      // Fallback to deterministic primary evaluation engine based on student's answers
       const localEval = evaluateSpeakingLocally(history, unitId);
       return res.json(localEval);
 
