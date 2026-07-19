@@ -24,25 +24,24 @@ function extractJsonString(rawText: string): string {
 
 // Strict relevance & grammar checker for primary school speaking answers
 function evaluateSpeakingLocally(history: any[], unitId: string) {
-  let validAnswers = 0;
-  let relevantAnswers = 0;
+  let relevantAnswersCount = 0;
   let wordCountTotal = 0;
   let irrelevantSample = "";
   let irrelevantQuestion = "";
   let validSample = "";
+
+  const totalQ = Math.max(1, history.length);
 
   history.forEach((item: any) => {
     const qText = (item.question || "").toLowerCase();
     const ans = (item.answer || "").trim().toLowerCase();
 
     if (ans.length > 0) {
-      validAnswers++;
       const words = ans.split(/\s+/);
       wordCountTotal += words.length;
 
       let isRelevant = true;
 
-      // 1. Age question ("how old")
       if (qText.includes("how old")) {
         const hasAgeWord = /\b(nine|ten|eleven|twelve|eight|seven|six|years|old|[0-9]+)\b/i.test(ans) || /^i'm\s+[0-9]+/i.test(ans);
         const isAnimalOrFood = /\b(dog|cat|apple|banana|car|fish|bird)\b/i.test(ans);
@@ -50,14 +49,12 @@ function evaluateSpeakingLocally(history: any[], unitId: string) {
           isRelevant = false;
         }
       }
-      // 2. Name question ("what is your name" / "what's your name")
       else if (qText.includes("name")) {
         const isIrrelevantWord = /\b(dog|cat|apple|banana|car|yes|no)\b/i.test(ans) && !ans.includes("my name");
         if (isIrrelevantWord) {
           isRelevant = false;
         }
       }
-      // 3. Feeling question ("how are you")
       else if (qText.includes("how are you") || qText.includes("feeling")) {
         const hasFeelingWord = /\b(happy|great|good|fine|ok|well|sad|tired)\b/i.test(ans);
         const isAnimalOrFood = /\b(dog|cat|apple|banana|car|nine|ten)\b/i.test(ans);
@@ -65,7 +62,6 @@ function evaluateSpeakingLocally(history: any[], unitId: string) {
           isRelevant = false;
         }
       }
-      // 4. General question matching
       else {
         if (words.length === 1 && /\b(dog|cat|apple|banana|car|bird)\b/i.test(ans) && !qText.includes("animal") && !qText.includes("food")) {
           isRelevant = false;
@@ -73,7 +69,7 @@ function evaluateSpeakingLocally(history: any[], unitId: string) {
       }
 
       if (isRelevant) {
-        relevantAnswers++;
+        relevantAnswersCount++;
         if (!validSample) validSample = item.answer;
       } else {
         if (!irrelevantSample) {
@@ -84,28 +80,28 @@ function evaluateSpeakingLocally(history: any[], unitId: string) {
     }
   });
 
-  const totalQ = Math.max(1, history.length);
-  const relevanceRatio = relevantAnswers / totalQ;
+  // Exact 10-point per relevant question formula for Grammar Score
+  // E.g. 5 relevant questions out of 10 = 50 points!
+  const grammarScore = Math.round((relevantAnswersCount / totalQ) * 100);
 
-  // Severe penalty for irrelevant/off-topic answers
-  const grammarScore = Math.min(100, Math.max(40, Math.round(relevanceRatio * 95)));
-  const pronunciationScore = Math.min(100, Math.max(45, Math.round(50 + (relevantAnswers / totalQ) * 45)));
-  const fluencyScore = Math.min(100, Math.max(40, Math.round(45 + (validAnswers / totalQ) * 50)));
-  const overallScore = Math.min(100, Math.max(40, Math.round(grammarScore * 0.40 + pronunciationScore * 0.35 + fluencyScore * 0.25)));
+  const avgWords = relevantAnswersCount > 0 ? wordCountTotal / relevantAnswersCount : 0;
+  const pronunciationScore = Math.min(100, Math.max(30, Math.round(grammarScore * 0.7 + Math.min(avgWords * 5, 30))));
+  const fluencyScore = Math.min(100, Math.max(30, Math.round((relevantAnswersCount / totalQ) * 90 + 10)));
+  const overallScore = Math.min(100, Math.max(30, Math.round(grammarScore * 0.45 + pronunciationScore * 0.30 + fluencyScore * 0.25)));
 
   const strengths: string[] = [];
   const weaknesses: string[] = [];
   const commonMistakes: string[] = [];
 
-  if (relevanceRatio >= 0.8) {
+  if (grammarScore >= 80) {
     strengths.push("Trả lời đúng trọng tâm các câu hỏi trong bài học.");
     strengths.push("Sử dụng cấu trúc câu phù hợp với chương trình Everybody Up 4.");
   } else {
-    weaknesses.push("Trừ điểm ngữ pháp nặng do có câu trả lời không đúng nội dung câu hỏi.");
+    weaknesses.push(`Điểm Ngữ pháp là ${grammarScore}/100 do có ${totalQ - relevantAnswersCount} câu trả lời không đúng nội dung câu hỏi.`);
   }
 
   if (irrelevantSample) {
-    weaknesses.push(`Cần chú ý không trả lời từ không liên quan (ví dụ: nói "${irrelevantSample}" cho câu hỏi "${irrelevantQuestion}").`);
+    weaknesses.push(`Không tính điểm ngữ pháp cho câu trả lời từ không liên quan (ví dụ: nói "${irrelevantSample}" cho câu hỏi "${irrelevantQuestion}").`);
     commonMistakes.push(`Trả lời không đúng trọng tâm: "${irrelevantSample}" (Hỏi: ${irrelevantQuestion})`);
   }
 
@@ -114,8 +110,8 @@ function evaluateSpeakingLocally(history: any[], unitId: string) {
   }
 
   const feedback = irrelevantSample
-    ? `Con đã trả lời ${validAnswers}/${totalQ} câu hỏi, tuy nhiên có câu trả lời chưa đúng nội dung như "${irrelevantSample}". Con chú ý lắng nghe kỹ câu hỏi nhé!`
-    : `Con đã làm rất tốt bài nói với ${relevantAnswers}/${totalQ} câu trả lời đúng trọng tâm! Hãy tiếp tục phát huy nhé.`;
+    ? `Con đã trả lời đúng trọng tâm ${relevantAnswersCount}/${totalQ} câu hỏi (Điểm Ngữ pháp: ${grammarScore}/100). Chú ý không trả lời các từ không liên quan như "${irrelevantSample}" nhé!`
+    : `Con đã xuất sắc hoàn thành ${relevantAnswersCount}/${totalQ} câu hỏi đúng trọng tâm! Điểm Ngữ pháp đạt ${grammarScore}/100. Hãy tiếp tục phát huy nhé!`;
 
   return {
     overallScore,
@@ -169,21 +165,23 @@ async function startServer() {
           const promptText = `
 You are a strict AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford) - Unit: "${unitId || 'General'}".
 
-CRITICAL GRADING RULE:
-- If a student answers an irrelevant word (e.g. answering "dog" or "cat" when asked "How old are you?"), GIVE 0 POINTS for relevance & grammar on that question and HEAVILY PENALIZE the Grammar Score!
+EXACT GRAMMAR SCORING INSTRUCTION:
+Each of the 10 questions is worth 10 points for Grammar.
+If a student's answer is NOT relevant to the question asked (e.g. saying "dog" or "cat" when asked "How old are you?"), give 0 points for Grammar on that question.
+For example, if 5 out of 10 answers are relevant, grammarScore MUST be 50. If 8 out of 10 answers are relevant, grammarScore MUST be 80.
 
 Conversation log:
 ${history.map((h: any, i: number) => `Q${i + 1}: ${h.question}\nStudent: "${h.answer}"`).join('\n\n')}
 
 Return strict JSON:
 {
-  "overallScore": integer (40-100),
-  "pronunciationScore": integer (40-100),
-  "grammarScore": integer (40-100),
-  "fluencyScore": integer (40-100),
-  "feedback": "Feedback in Vietnamese noting any off-topic answers",
+  "overallScore": integer (0-100),
+  "pronunciationScore": integer (0-100),
+  "grammarScore": integer (0-100),
+  "fluencyScore": integer (0-100),
+  "feedback": "Feedback in Vietnamese mentioning grammarScore calculation",
   "strengths": ["One strength in Vietnamese"],
-  "weaknesses": ["One weakness in Vietnamese noting off-topic penalties if any"],
+  "weaknesses": ["One weakness noting grammar deduction if any"],
   "commonMistakes": ["List off-topic or grammar mistakes"],
   "suggestedPractice": "One practice suggestion in Vietnamese"
 }
