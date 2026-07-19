@@ -15,6 +15,19 @@ if (apiKey && !apiKey.includes("MY_GEMINI_API_KEY")) {
   });
 }
 
+function extractJsonString(rawText: string): string {
+  if (!rawText) return "";
+  let clean = rawText.trim();
+  // Strip markdown code fences if present (e.g. ```json ... ```)
+  clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  // Extract JSON object if surrounded by explanatory text
+  const jsonMatch = clean.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    clean = jsonMatch[0];
+  }
+  return clean;
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -31,11 +44,11 @@ export default async function handler(req: any, res: any) {
 
     if (!ai) {
       console.error("Gemini API key is not configured");
-      return res.status(500).json({ error: "Gemini API key missing", useFallback: true });
+      return res.json({ error: "Gemini API key missing", useFallback: true });
     }
 
     const promptText = `
-You are a strict, fair, and professional AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford).
+You are a strict, fair, and professional AI English Speaking Coach for primary school students studying "Everybody Up 4" (Oxford) - Unit: "${unitId || 'General'}".
 You are evaluating a student's 10-question speaking performance.
 
 Here is the exact conversation log:
@@ -63,6 +76,8 @@ Return strict JSON matching all 9 required fields:
   "suggestedPractice": "Specific practice tips in Vietnamese"
 }
 `;
+
+    console.log("Gemini Request:", JSON.stringify({ promptText }, null, 2));
 
     let attempts = 0;
     let result: any = null;
@@ -97,18 +112,19 @@ Return strict JSON matching all 9 required fields:
         });
 
         const rawText = response.text ? response.text.trim() : "";
-        console.log("Gemini raw response:", rawText);
+        console.log("Gemini Raw Response BEFORE JSON.parse:", rawText);
 
         if (!rawText) {
           console.log("JSON parse failed");
           continue;
         }
 
-        try {
-          const parsed = JSON.parse(rawText);
-          console.log("JSON parse success");
+        const cleanedJsonText = extractJsonString(rawText);
 
-          // Validate that all 9 required fields exist
+        try {
+          const parsed = JSON.parse(cleanedJsonText);
+          console.log("Parsed JSON:", JSON.stringify(parsed, null, 2));
+
           const requiredFields = [
             "overallScore", "pronunciationScore", "grammarScore", "fluencyScore",
             "feedback", "strengths", "weaknesses", "commonMistakes", "suggestedPractice"
@@ -117,14 +133,15 @@ Return strict JSON matching all 9 required fields:
           const hasAllFields = requiredFields.every(field => parsed[field] !== undefined && parsed[field] !== null);
 
           if (hasAllFields) {
-            console.log("Parsed evaluation:", JSON.stringify(parsed, null, 2));
+            console.log("Evaluation Object:", JSON.stringify(parsed, null, 2));
             result = parsed;
           } else {
             console.warn(`Missing required fields on attempt ${attempts}. Retrying...`);
           }
-        } catch (parseErr) {
-          console.log("JSON parse failed");
-          console.log("Gemini raw response:", rawText);
+        } catch (parseErr: any) {
+          console.error("JSON parse exception stack trace:", parseErr.stack || parseErr);
+          console.log("JSON parse failed:", parseErr.message || parseErr);
+          console.log("Gemini Raw Response:", rawText);
         }
       } catch (genErr) {
         console.error("Gemini generateContent error:", genErr);
@@ -135,10 +152,10 @@ Return strict JSON matching all 9 required fields:
       return res.json(result);
     } else {
       console.error("All Gemini evaluation attempts failed or returned incomplete schema.");
-      return res.status(500).json({ error: "Failed to parse evaluation from Gemini", useFallback: true });
+      return res.json({ useFallback: true, error: "Failed to parse evaluation from Gemini" });
     }
-  } catch (err) {
-    console.error("Gemini evaluate-speaking handler error:", err);
-    return res.status(500).json({ error: "Internal Server Error", useFallback: true });
+  } catch (err: any) {
+    console.error("Gemini evaluate-speaking handler error:", err.stack || err);
+    return res.json({ useFallback: true, error: "Internal Server Error" });
   }
 }
