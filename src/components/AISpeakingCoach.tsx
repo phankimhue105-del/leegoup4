@@ -220,6 +220,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const [isRecording, setIsRecording] = useState(false);
   const [recordDuration, setRecordDuration] = useState(0);
   const [transcript, setTranscript] = useState('');
+  const [textInput, setTextInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
@@ -271,6 +272,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     setEvalResultState(null);
     setEvalErrorState(false);
     setTranscript('');
+    setTextInput('');
     setSimulationText('');
     setAnswersLog([]);
     
@@ -312,8 +314,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     if (!SpeechRecognition) {
       setIsProcessing(false);
-      alert("Speech recognition is not supported on this browser. Please use Chrome or Microsoft Edge.");
       setMicError('error');
+      alert("Trình duyệt hiện tại chưa hỗ trợ nhận diện giọng nói. Con hãy sử dụng ô Gõ văn bản bên dưới để trả lời nhé!");
       return;
     }
 
@@ -363,9 +365,9 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         setIsRecording(false);
         setIsProcessing(false);
         stopTimer();
-        if (event.error === 'not-allowed') {
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           setMicError('blocked');
-          alert("Quyền truy cập micro đã bị từ chối. Con hãy cho phép micro rồi thử lại nhé!");
+          alert("Quyền micro chưa được cho phép. Con hãy cho phép micro hoặc gõ câu trả lời ở khung bên dưới nhé!");
         } else if (event.error !== 'no-speech') {
           setMicError('error');
         }
@@ -384,7 +386,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
           if (!capturedText) {
             console.warn("[AISpeakingCoach] Final transcript is empty. Staying on current question.");
             setIsProcessing(false);
-            alert("I couldn't hear you clearly. Please try again.");
+            alert("I couldn't hear you clearly. Please try again or type your answer below.");
             return;
           }
 
@@ -400,7 +402,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       setIsProcessing(false);
       setIsRecording(false);
       stopTimer();
-      alert("Speech recognition is not supported on this browser. Please use Chrome or Microsoft Edge.");
+      alert("Không thể khởi động micro. Con có thể sử dụng khung Gõ văn bản phía dưới để trả lời nhé!");
     }
   };
 
@@ -424,7 +426,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const processAnswer = async (customText?: string) => {
     const finalAnswer = (customText || transcript || simulationText || '').trim();
     
-    // Require real typed input - NEVER auto-insert suggested answer!
     if (!finalAnswer) {
       console.warn("[AISpeakingCoach] Empty text answer submitted. Stopping pipeline.");
       alert("Bé hãy gõ hoặc nói câu trả lời của mình nhé! (Please record or type your answer.)");
@@ -496,6 +497,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         setChatLog(prev => [...prev, nextQMsg]);
         speakText(questions[nextIdx].question);
         setTranscript('');
+        setTextInput('');
         setSimulationText('');
         setIsProcessing(false);
         startTimeRef.current = Date.now();
@@ -803,7 +805,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
                 )}
 
                 {/* Main Action Buttons */}
-                <div className="flex flex-col sm:flex-row items-center gap-3">
+                <div className="flex flex-col gap-3">
                   {!isRecording ? (
                     <button
                       onClick={startRecording}
@@ -826,6 +828,44 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
                       <span>Gửi câu trả lời (Dừng nói)</span>
                     </button>
                   )}
+
+                  {/* Manual Keyboard Text Input Fallback */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <input
+                      type="text"
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && textInput.trim() && !isProcessing) {
+                          const val = textInput;
+                          setTextInput('');
+                          processAnswer(val);
+                        }
+                      }}
+                      placeholder="Hoặc gõ câu trả lời của con tại đây..."
+                      disabled={isProcessing || isRecording}
+                      className="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-primary"
+                    />
+                    <button
+                      onClick={() => {
+                        if (textInput.trim() && !isProcessing) {
+                          const val = textInput;
+                          setTextInput('');
+                          processAnswer(val);
+                        }
+                      }}
+                      disabled={!textInput.trim() || isProcessing || isRecording}
+                      className={`p-3 rounded-xl transition cursor-pointer flex items-center justify-center ${
+                        !textInput.trim() || isProcessing || isRecording
+                          ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                          : 'bg-brand-primary text-white hover:bg-rose-600 shadow-md shadow-rose-100'
+                      }`}
+                      title="Gửi câu trả lời bằng phím"
+                    >
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+
                 </div>
               </div>
 
