@@ -9,7 +9,7 @@ import { playWordAudio } from '../lib/audioHelper';
 import { 
   Mic, MicOff, Volume2, Sparkles, Trophy, Award, 
   ArrowLeft, CheckCircle, RefreshCw, Send, HelpCircle, 
-  User, Check, AlertCircle, FileText, ChevronRight, Play, Star, ShieldAlert
+  User, Check, AlertCircle, FileText, ChevronRight, Play, Star, ShieldAlert, Image as ImageIcon
 } from 'lucide-react';
 
 interface AISpeakingCoachProps {
@@ -213,6 +213,56 @@ const SPEAKING_QUESTIONS_DB: Record<string, SpeakingQuestion[]> = {
     { id: 9, question: "How are you going to the department store?", vietnamesePrompt: "Con định di chuyển đến cửa hàng bách hóa bằng cách nào?", type: 'topic', targetPatterns: ["take a taxi", "subway"], suggestedAnswer: "I'm going to take a taxi." },
     { id: 10, question: "What is your favorite transportation for vacation?", vietnamesePrompt: "Phương tiện di chuyển yêu thích của con trong kỳ nghỉ là gì?", type: 'topic', targetPatterns: ["i like", "ferry"], suggestedAnswer: "I like taking the ferry on vacation." }
   ]
+};
+
+// Helper to check and retrieve images based on gender pronouns or third-person pronouns (He, She, They)
+const getQuestionImage = (questionText: string): string | null => {
+  if (!questionText) return null;
+  const text = questionText.toLowerCase();
+  const words = text.split(/\s+/).map(w => w.replace(/[^a-z]/g, ''));
+  
+  const targetWords = ['he', 'she', 'they', 'him', 'her', 'them', 'his', 'hers', 'their'];
+  const excludeWords = ['you', 'your', 'i', 'my', 'me', 'mine'];
+  
+  const hasTarget = words.some(w => targetWords.includes(w));
+  const hasExclude = words.some(w => excludeWords.includes(w));
+  
+  if (!hasTarget || hasExclude) {
+    return null;
+  }
+  
+  if (text.includes('skiing')) {
+    return 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('climbing') || text.includes('hiking') || text.includes('outdoors')) {
+    return 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('party') || text.includes('accessory') || text.includes('necklace')) {
+    return 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('rome') || text.includes('house') || text.includes('home')) {
+    return 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('metal') || text.includes('cup')) {
+    return 'https://images.unsplash.com/photo-1576016770956-debb63d900bb?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('bowling')) {
+    return 'https://images.unsplash.com/photo-1541252260730-0412e8e2108e?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('clothes') || text.includes('design')) {
+    return 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('artist') || text.includes('scientist')) {
+    return 'https://images.unsplash.com/photo-1533158326339-7f3cf2404354?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('animals') || text.includes('wild')) {
+    return 'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=600&q=80';
+  }
+  if (text.includes('space') || text.includes('astronaut')) {
+    return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80';
+  }
+  
+  return 'https://images.unsplash.com/photo-1516627145497-ae6968895b74?auto=format&fit=crop&w=600&q=80';
 };
 
 export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, onBack }: AISpeakingCoachProps) {
@@ -639,6 +689,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     onUpdateSession(updatedSession);
   };
 
+  const currentContextImg = getQuestionImage(questions[currentQuestionIndex]?.question);
+
   return (
     <div className="bg-slate-50 min-h-screen pb-12 flex flex-col justify-between" id="ai-speaking-coach-main">
       
@@ -853,6 +905,22 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
             {/* Right Side Helper Panel */}
             <div className="space-y-4">
+              
+              {/* Question Context Picture Card (Rendered for third-person pronoun questions) */}
+              {currentContextImg && (
+                <div className="bg-white rounded-3xl border border-slate-100 p-3 shadow-xs space-y-2">
+                  <div className="flex items-center space-x-1.5 px-1 pt-1 text-slate-400">
+                    <ImageIcon className="h-3.5 w-3.5 text-brand-purple" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Hình ảnh gợi ý câu hỏi</span>
+                  </div>
+                  <img 
+                    src={currentContextImg} 
+                    alt="Question Context Visual" 
+                    className="w-full h-44 object-cover rounded-2xl border border-slate-100 shadow-xs"
+                  />
+                </div>
+              )}
+
               <div className="bg-white rounded-3xl border border-slate-100 p-5 shadow-xs space-y-4">
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                   <HelpCircle className="h-4 w-4 text-brand-purple" />
