@@ -11,8 +11,8 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
-// Initialize Gemini client
-const apiKey = process.env.GEMINI_API_KEY;
+// Initialize Gemini client with fallback environment key lookup
+const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
 let ai: GoogleGenAI | null = null;
 
 if (apiKey && !apiKey.includes("MY_GEMINI_API_KEY")) {
@@ -47,7 +47,10 @@ async function startServer() {
         return res.status(400).json({ error: "Missing currentQuestion" });
       }
 
-      if (!ai) {
+      const activeApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+      const client = ai || (activeApiKey && !activeApiKey.includes("MY_GEMINI_API_KEY") ? new GoogleGenAI({ apiKey: activeApiKey }) : null);
+
+      if (!client) {
         return res.json({
           reply: "Good job! Let's continue to the next question.",
           nextQuestion: nextQuestion ? `Câu hỏi tiếp theo:\n\n💬 "${nextQuestion.question}"\n(${nextQuestion.vietnamesePrompt})` : undefined
@@ -62,7 +65,7 @@ Give a very short (1-2 sentences), encouraging reply in Vietnamese with 1 Englis
 Do NOT give scores or full evaluations yet. Just praise them and encourage them.
 `;
 
-      const response = await ai.models.generateContent({
+      const response = await client.models.generateContent({
         model: "gemini-2.0-flash",
         contents: promptText
       });
@@ -93,7 +96,10 @@ Do NOT give scores or full evaluations yet. Just praise them and encourage them.
 
       console.log("[server.ts /api/evaluate-speaking] Transcript:", JSON.stringify(history, null, 2));
 
-      if (!ai) {
+      const activeApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+      const client = ai || (activeApiKey && !activeApiKey.includes("MY_GEMINI_API_KEY") ? new GoogleGenAI({ apiKey: activeApiKey }) : null);
+
+      if (!client) {
         console.error("[server.ts /api/evaluate-speaking] Gemini API key missing.");
         return res.json({ useFallback: true, error: "Gemini API key missing" });
       }
@@ -140,15 +146,13 @@ Return strict JSON matching all 9 required fields:
 }
 `;
 
-      console.log("[server.ts /api/evaluate-speaking] Gemini Request prompt prepared.");
-
       let attempts = 0;
       let result: any = null;
 
       while (attempts < 2 && !result) {
         attempts++;
         try {
-          const response = await ai.models.generateContent({
+          const response = await client.models.generateContent({
             model: "gemini-2.0-flash",
             contents: promptText,
             config: {
@@ -178,7 +182,6 @@ Return strict JSON matching all 9 required fields:
           console.log("[server.ts /api/evaluate-speaking] Gemini Raw Response:", rawText);
 
           if (!rawText) {
-            console.warn(`[server.ts /api/evaluate-speaking] Empty response on attempt ${attempts}.`);
             continue;
           }
 
@@ -186,18 +189,19 @@ Return strict JSON matching all 9 required fields:
 
           try {
             const parsed = JSON.parse(cleanedJsonText);
-            const requiredFields = [
-              "overallScore", "pronunciationScore", "grammarScore", "fluencyScore",
-              "feedback", "strengths", "weaknesses", "commonMistakes", "suggestedPractice"
-            ];
-
-            const hasAllFields = requiredFields.every(field => parsed[field] !== undefined && parsed[field] !== null);
-
-            if (hasAllFields) {
-              console.log("[server.ts /api/evaluate-speaking] Valid Evaluation Object parsed.");
-              result = parsed;
-            } else {
-              console.warn(`[server.ts /api/evaluate-speaking] Missing required fields on attempt ${attempts}.`);
+            const overall = parsed.overallScore ?? parsed.overall;
+            if (overall !== undefined && overall !== null) {
+              result = {
+                overallScore: Number(overall),
+                pronunciationScore: Number(parsed.pronunciationScore ?? parsed.pronunciation ?? overall),
+                grammarScore: Number(parsed.grammarScore ?? parsed.grammar ?? overall),
+                fluencyScore: Number(parsed.fluencyScore ?? parsed.fluency ?? overall),
+                feedback: parsed.feedback || "Con đã cố gắng hoàn thành bài nói!",
+                strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
+                weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
+                commonMistakes: Array.isArray(parsed.commonMistakes) ? parsed.commonMistakes : (Array.isArray(parsed.corrections) ? parsed.corrections : []),
+                suggestedPractice: parsed.suggestedPractice || ""
+              };
             }
           } catch (parseErr: any) {
             console.error("[server.ts /api/evaluate-speaking] JSON parse exception:", parseErr.stack || parseErr);
@@ -210,7 +214,6 @@ Return strict JSON matching all 9 required fields:
       if (result) {
         return res.json(result);
       } else {
-        console.error("[server.ts /api/evaluate-speaking] Gemini evaluation failed on all attempts.");
         return res.json({ useFallback: true, error: "Failed to obtain evaluation from Gemini" });
       }
     } catch (err: any) {
