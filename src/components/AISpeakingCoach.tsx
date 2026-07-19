@@ -369,11 +369,11 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
     try {
       const recognition = new SpeechRecognition();
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
-      // Essential iOS Safari Speech Recognition settings
+      // Desktop & Mobile settings
       recognition.continuous = false;
-      recognition.interimResults = false; // Prevents iOS WebKit audio capture aborts
+      recognition.interimResults = !isMobile;
       recognition.lang = 'en-US';
       recognition.maxAlternatives = 1;
 
@@ -390,16 +390,17 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       };
 
       recognition.onresult = (event: any) => {
-        let resultText = '';
-        if (event.results && event.results.length > 0) {
-          resultText = event.results[0][0].transcript;
+        let accumulated = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          accumulated += event.results[i][0].transcript + ' ';
         }
-        console.log("[AISpeakingCoach] Speech recognition result:", resultText);
+        const cleanText = accumulated.trim();
+        console.log("[AISpeakingCoach] Speech recognition result:", cleanText);
 
-        if (resultText && resultText.trim()) {
-          finalTranscriptRef.current = resultText.trim();
-          latestFullTextRef.current = resultText.trim();
-          setTranscript(resultText.trim());
+        if (cleanText) {
+          finalTranscriptRef.current = cleanText;
+          latestFullTextRef.current = cleanText;
+          setTranscript(cleanText);
         }
       };
 
@@ -410,7 +411,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         stopTimer();
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           setMicError('blocked');
-          alert("Micro chưa được cấp quyền trên Safari. Con hãy gõ câu trả lời ở khung gõ bên dưới nhé!");
+          alert("Micro chưa được cấp quyền trên trình duyệt. Con hãy cho phép micro hoặc gõ câu trả lời ở khung bên dưới nhé!");
         } else if (event.error !== 'no-speech') {
           setMicError('error');
         }
@@ -594,8 +595,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
           let reportText = `🏆 **KẾT QUẢ ĐÁNH GIÁ BÀI NÓI AI (SPEECH REPORT)**\n\n`;
           reportText += `⭐ **Điểm số chi tiết:**\n`;
-          reportText += `- Phát âm (Pronunciation): ${evalObj.pronunciationScore}/100 🗣️\n`;
           reportText += `- Ngữ pháp (Grammar): ${evalObj.grammarScore}/100 📝\n`;
+          reportText += `- Phát âm (Pronunciation): ${evalObj.pronunciationScore}/100 🗣️\n`;
           reportText += `- Trôi chảy (Fluency): ${evalObj.fluencyScore}/100 ⚡\n`;
           reportText += `- **Điểm tổng quát (Overall): ${evalObj.overallScore}/100 🏆**\n\n`;
           reportText += `🤖 **Giáo viên AI nhận xét:**\n"${evalObj.feedback}"\n\n`;
@@ -986,15 +987,15 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
               </div>
 
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center flex flex-col justify-center items-center">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Pronunciation</span>
-                <span className="text-2xl font-extrabold text-slate-800">{evalResultState.pronunciationScore}</span>
-                <span className="text-[9px] font-bold text-slate-400 block mt-0.5">/100 Điểm 🗣️</span>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center flex flex-col justify-center items-center">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Grammar Target</span>
                 <span className="text-2xl font-extrabold text-slate-800">{evalResultState.grammarScore}</span>
                 <span className="text-[9px] font-bold text-slate-400 block mt-0.5">/100 Điểm 📝</span>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center flex flex-col justify-center items-center">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Pronunciation</span>
+                <span className="text-2xl font-extrabold text-slate-800">{evalResultState.pronunciationScore}</span>
+                <span className="text-[9px] font-bold text-slate-400 block mt-0.5">/100 Điểm 🗣️</span>
               </div>
 
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center flex flex-col justify-center items-center">
