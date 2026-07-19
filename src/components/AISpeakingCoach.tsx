@@ -371,7 +371,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       const recognition = new SpeechRecognition();
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
-      // Desktop & Mobile settings
+      // Desktop & Mobile compatibility
       recognition.continuous = false;
       recognition.interimResults = !isMobile;
       recognition.lang = 'en-US';
@@ -578,11 +578,16 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         const data = await response.json();
         
         if (data) {
+          const gScore = data.grammarScore !== undefined ? Number(data.grammarScore) : (data.grammar !== undefined ? Number(data.grammar) : 0);
+          const pScore = data.pronunciationScore !== undefined ? Number(data.pronunciationScore) : (data.pronunciation !== undefined ? Number(data.pronunciation) : 0);
+          const fScore = data.fluencyScore !== undefined ? Number(data.fluencyScore) : (data.fluency !== undefined ? Number(data.fluency) : 0);
+          const oScore = data.overallScore !== undefined ? Number(data.overallScore) : (data.overall !== undefined ? Number(data.overall) : 0);
+
           const evalObj = {
-            overallScore: Number(data.overallScore ?? 85),
-            pronunciationScore: Number(data.pronunciationScore ?? 85),
-            grammarScore: Number(data.grammarScore ?? 85),
-            fluencyScore: Number(data.fluencyScore ?? 85),
+            overallScore: oScore,
+            pronunciationScore: pScore,
+            grammarScore: gScore,
+            fluencyScore: fScore,
             feedback: data.feedback || "Con làm rất tốt!",
             strengths: Array.isArray(data.strengths) ? data.strengths : ["Sử dụng tốt từ vựng bài học"],
             weaknesses: Array.isArray(data.weaknesses) ? data.weaknesses : ["Phát âm thêm rõ ràng"],
