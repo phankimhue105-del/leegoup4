@@ -492,309 +492,126 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     playWordAudio(text);
   };
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null);
+  const finalTranscriptRef = useRef<string>('');
+  const isStoppingRef = useRef<boolean>(false);
 
-  const startRecording = async () => {
+  const startRecording = () => {
     if (isProcessing) return;
     setIsProcessing(true);
     setMicError(null);
     setTranscript('');
-    audioChunksRef.current = [];
-    mediaRecorderRef.current = null;
+    finalTranscriptRef.current = '';
+    isStoppingRef.current = false;
 
-    console.log("[AISpeakingCoach] Requesting microphone access...");
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    // Timeout helper to avoid infinite hanging when getUserMedia is blocked/unresponsive
-    const getUserMediaWithTimeout = (constraints: MediaStreamConstraints, timeoutMs: number): Promise<MediaStream> => {
-      return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          reject(new Error("Microphone permission prompt timeout (15000ms elapsed)"));
-        }, timeoutMs);
-
-        navigator.mediaDevices.getUserMedia(constraints)
-          .then((stream) => {
-            clearTimeout(timer);
-            resolve(stream);
-          })
-          .catch((err) => {
-            clearTimeout(timer);
-            reject(err);
-          });
-      });
-    };
+    if (!SpeechRecognition) {
+      setIsProcessing(false);
+      alert("Speech recognition is not supported on this browser. Please use Chrome or Microsoft Edge.");
+      setMicError('error');
+      return;
+    }
 
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("navigator.mediaDevices.getUserMedia is not supported on this browser.");
-      }
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
 
-      // Timeout in 15 seconds to allow ample time for user to click "Allow" on permission dialog
-      const stream = await getUserMediaWithTimeout({ audio: true }, 15000);
-      console.log("[AISpeakingCoach] Microphone access granted!");
+      recognition.onstart = () => {
+        console.log("Recognition started");
+        setIsRecording(true);
+        setIsProcessing(false);
+        startTimeRef.current = Date.now();
+        setRecordDuration(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
+          setRecordDuration(prev => prev + 1);
+        }, 1000);
+      };
 
-      let mimeType = 'audio/webm';
-      if (typeof MediaRecorder !== 'undefined') {
-        if (!MediaRecorder.isTypeSupported('audio/webm')) {
-          if (MediaRecorder.isTypeSupported('audio/mp4')) {
-            mimeType = 'audio/mp4';
-          } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-            mimeType = 'audio/aac';
+      recognition.onresult = (event: any) => {
+        let interimText = '';
+        let finalAccumulated = '';
+
+        for (let i = 0; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalAccumulated += event.results[i][0].transcript + ' ';
           } else {
-            mimeType = '';
+            interimText += event.results[i][0].transcript;
           }
         }
-      } else {
-        throw new Error("MediaRecorder is not supported in this browser.");
-      }
 
-      console.log("[AISpeakingCoach] Using MIME type:", mimeType);
-      const options = mimeType ? { mimeType } : undefined;
-      
-      let mediaRecorder: MediaRecorder;
-      try {
-        mediaRecorder = new MediaRecorder(stream, options);
-      } catch (e) {
-        console.warn("[AISpeakingCoach] Failed to create MediaRecorder with options, trying default...", e);
-        mediaRecorder = new MediaRecorder(stream);
-      }
+        if (finalAccumulated.trim()) {
+          finalTranscriptRef.current = finalAccumulated.trim();
+        }
 
-      mediaRecorderRef.current = mediaRecorder;
+        const fullDisplayText = (finalAccumulated + interimText).trim();
+        setTranscript(fullDisplayText);
+      };
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          console.log(`Chunk received: size=${event.data.size}`);
-          audioChunksRef.current.push(event.data);
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsRecording(false);
+        setIsProcessing(false);
+        stopTimer();
+        if (event.error === 'not-allowed') {
+          setMicError('blocked');
+          alert("Quyền truy cập micro đã bị từ chối. Con hãy cho phép micro rồi thử lại nhé!");
+        } else if (event.error !== 'no-speech') {
+          setMicError('error');
         }
       };
 
-      mediaRecorder.onstart = () => {
-        console.log("Recording started");
-      };
+      recognition.onend = () => {
+        console.log("Recognition ended");
+        setIsRecording(false);
+        stopTimer();
 
-      mediaRecorder.onerror = (e) => {
-        console.error("[AISpeakingCoach] MediaRecorder runtime error:", e);
-        handleRecordingError(e);
-      };
+        // Process answer ONLY when user requested stop and recognition has cleanly ended
+        if (isStoppingRef.current) {
+          isStoppingRef.current = false;
+          const capturedText = (finalTranscriptRef.current || transcript).trim();
+          console.log("Final transcript:", capturedText);
 
-      mediaRecorder.onstop = () => {
-        console.log("Recording stopped");
-        console.log(`Total chunks: ${audioChunksRef.current.length}`);
+          if (!capturedText) {
+            console.warn("[AISpeakingCoach] Final transcript is empty. Staying on current question.");
+            setIsProcessing(false);
+            alert("I couldn't hear you clearly. Please try again.");
+            return;
+          }
 
-        const actualMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: actualMimeType });
-
-        console.log(`Blob size: ${audioBlob.size}`);
-        console.log(`Blob type: ${audioBlob.type}`);
-
-        // Stop every MediaStreamTrack immediately
-        if (stream) {
-          stream.getTracks().forEach(track => {
-            console.log(`Stopping track: ${track.label}`);
-            track.stop();
-          });
+          console.log("Processing answer...");
+          processAnswer(capturedText);
         }
-
-        // Clear audioChunksRef immediately
-        audioChunksRef.current = [];
-
-        if (audioBlob.size === 0) {
-          console.error("Recording failed. No audio was captured.");
-          setIsProcessing(false);
-          alert("Recording failed. No audio was captured.");
-          return;
-        }
-
-        setIsProcessing(true);
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          const base64Data = (reader.result as string).split(',')[1];
-          console.log(`Base64 length: ${base64Data ? base64Data.length : 0}`);
-          console.log("Uploading audio...");
-          processAudioAnswer(base64Data, actualMimeType);
-        };
       };
 
-      // Set recording state
-      setIsRecording(true);
-      setIsProcessing(false);
-      startTimeRef.current = Date.now();
-      setRecordDuration(0);
-      
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        setRecordDuration(prev => prev + 1);
-      }, 1000);
-
-      // Start recording with timeslice (e.g., 250ms) to ensure ondataavailable fires repeatedly
-      mediaRecorder.start(250);
+      recognitionRef.current = recognition;
+      recognition.start();
     } catch (err: any) {
-      handleRecordingError(err);
+      console.error("Failed to start SpeechRecognition:", err);
+      setIsProcessing(false);
+      setIsRecording(false);
+      stopTimer();
+      alert("Speech recognition is not supported on this browser. Please use Chrome or Microsoft Edge.");
     }
-  };
-
-  const handleRecordingError = (err: any) => {
-    console.error("[AISpeakingCoach] startRecording failed:", err);
-    let errMsg = "Không thể khởi chạy thiết bị ghi âm của con. ";
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message?.includes("timeout")) {
-      errMsg += "Quyền truy cập micro đã bị từ chối hoặc hết thời gian chờ. Con hãy nhấp vào cài đặt trình duyệt (hoặc biểu tượng ổ khóa 🔒 bên cạnh thanh địa chỉ) để Cho phép (Allow) quyền Micro rồi thử lại nhé!";
-      setMicError('blocked');
-    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-      errMsg += "Không tìm thấy thiết bị micro nào được kết nối với thiết bị của con. Con hãy kiểm tra lại thiết bị thu âm nhé!";
-      setMicError('error');
-    } else {
-      errMsg += err.message || "Đã xảy ra lỗi hệ thống micro.";
-      setMicError('error');
-    }
-    setIsRecording(false);
-    setIsProcessing(false);
-    stopTimer();
-    alert(errMsg);
   };
 
   const stopRecordingAndAnalyze = () => {
     setIsRecording(false);
     stopTimer();
+    isStoppingRef.current = true;
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.warn("Recognition stop error:", e);
+      }
     } else {
-      console.warn("MediaRecorder is not recording or is already stopped.");
+      isStoppingRef.current = false;
       processAnswer();
-    }
-  };
-
-  // Process audio recording via transcribe and chat endpoints
-  const processAudioAnswer = async (audioBase64: string, mimeType: string) => {
-    setIsProcessing(true);
-
-    const currentQ = questions[currentQuestionIndex];
-    let transcriptText = "";
-    
-    console.log("Uploading audio...");
-    
-    try {
-      const response = await fetch("/api/transcribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          audio: audioBase64,
-          mimeType: mimeType
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Transcript received:", data);
-        transcriptText = data.transcript || "";
-      }
-    } catch (err) {
-      console.error("Transcription API error:", err);
-    }
-
-    // Handle empty/failed transcript
-    if (!transcriptText.trim()) {
-      console.warn("[AISpeakingCoach] Transcription is empty or failed. Staying on current question.");
-      setIsProcessing(false);
-      alert("I couldn't hear you clearly. Please try again.");
-      return;
-    }
-
-    // Add student's message to chat log
-    const studentMsg: ChatMessage = {
-      id: `student-${currentQuestionIndex}`,
-      sender: 'student',
-      text: transcriptText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setChatLog(prev => [...prev, studentMsg]);
-
-    const answerItem = { question: currentQ.question, answer: transcriptText };
-    const updatedLog = [...answersLog, answerItem];
-    setAnswersLog(updatedLog);
-
-    // Call AI Teacher endpoint `/api/chat`
-    try {
-      const nextQ = currentQuestionIndex + 1 < questions.length ? questions[currentQuestionIndex + 1] : null;
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          history: updatedLog,
-          currentQuestion: currentQ,
-          nextQuestion: nextQ
-        })
-      });
-
-      if (response.ok) {
-        const chatData = await response.json();
-        console.log("API response:", chatData);
-        
-        // Display teacher reply comment in chat
-        if (chatData.reply) {
-          const teacherReplyMsg: ChatMessage = {
-            id: `ai-reply-${currentQuestionIndex}`,
-            sender: 'ai',
-            text: chatData.reply,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-          setChatLog(prev => [...prev, teacherReplyMsg]);
-        }
-
-        // Proceed to next question or evaluate
-        setTimeout(() => {
-          const nextIdx = currentQuestionIndex + 1;
-          if (nextIdx < questions.length) {
-            setCurrentQuestionIndex(nextIdx);
-            
-            const nextQMsg: ChatMessage = {
-              id: `ai-q-${nextIdx}`,
-              sender: 'ai',
-              text: chatData.nextQuestion || `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${questions[nextIdx].question}"\n(${questions[nextIdx].vietnamesePrompt})`,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-            
-            setChatLog(prev => [...prev, nextQMsg]);
-            speakText(questions[nextIdx].question);
-            setTranscript('');
-            setSimulationText('');
-            setIsProcessing(false);
-            startTimeRef.current = Date.now();
-          } else {
-            runComprehensiveEvaluation(updatedLog);
-          }
-        }, 1500);
-
-      } else {
-        throw new Error("Chat API failed");
-      }
-    } catch (err) {
-      console.error("AI Teacher chat generation error:", err);
-      // Fallback in case of API issues
-      setTimeout(() => {
-        const nextIdx = currentQuestionIndex + 1;
-        if (nextIdx < questions.length) {
-          setCurrentQuestionIndex(nextIdx);
-          const nextQ = questions[nextIdx];
-          
-          const nextQMsg: ChatMessage = {
-            id: `ai-q-${nextIdx}`,
-            sender: 'ai',
-            text: `Câu hỏi ${nextIdx + 1} / 10:\n\n💬 "${nextQ.question}"\n(${nextQ.vietnamesePrompt})`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-          
-          setChatLog(prev => [...prev, nextQMsg]);
-          speakText(nextQ.question);
-          setTranscript('');
-          setSimulationText('');
-          setIsProcessing(false);
-          startTimeRef.current = Date.now();
-        } else {
-          runComprehensiveEvaluation(updatedLog);
-        }
-      }, 1500);
     }
   };
 
