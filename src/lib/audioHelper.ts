@@ -1,4 +1,6 @@
-// Initialize SpeechSynthesis voices immediately on file load for all browsers
+// Keep global reference to prevent Garbage Collection of SpeechSynthesisUtterance in Chrome/Edge Desktop
+let activeUtterance: SpeechSynthesisUtterance | null = null;
+
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   try {
     window.speechSynthesis.getVoices();
@@ -15,6 +17,7 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 /**
  * Universal speech player for desktop, laptop, and mobile devices.
  * Uses native Web Speech API (SpeechSynthesis) with forced English voice selection.
+ * Solves Chrome/Edge Desktop garbage collection silence bug.
  */
 export const playWordAudio = (text: string): Promise<void> => {
   return new Promise((resolve) => {
@@ -36,33 +39,58 @@ export const playWordAudio = (text: string): Promise<void> => {
     }
 
     try {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(cleanedText);
       utterance.lang = 'en-US';
       utterance.rate = 0.85; // Natural pace for primary school learners
 
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        const enVoice = voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('google')) ||
-                        voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('samantha')) ||
-                        voices.find(v => v.lang.startsWith('en-US')) ||
-                        voices.find(v => v.lang.startsWith('en-'));
-        if (enVoice) {
-          utterance.voice = enVoice;
+      // Prevent Chrome/Edge Desktop Garbage Collection bug
+      activeUtterance = utterance;
+      (window as any)._activeUtterance = utterance;
+
+      const speakNow = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices && voices.length > 0) {
+          const enVoice = voices.find(v => (v.lang === 'en-US' || v.lang === 'en_US') && v.name.toLowerCase().includes('google')) ||
+                          voices.find(v => v.lang === 'en-US' || v.lang === 'en_US') ||
+                          voices.find(v => v.lang.startsWith('en')) ||
+                          voices[0];
+          if (enVoice) {
+            utterance.voice = enVoice;
+          }
         }
+
+        utterance.onend = () => {
+          activeUtterance = null;
+          (window as any)._activeUtterance = null;
+          resolve();
+        };
+
+        utterance.onerror = (e) => {
+          console.warn("[playWordAudio] Utterance error:", e);
+          activeUtterance = null;
+          (window as any)._activeUtterance = null;
+          resolve();
+        };
+
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+
+        window.speechSynthesis.speak(utterance);
+      };
+
+      const voices = window.speechSynthesis.getVoices();
+      if (!voices || voices.length === 0) {
+        window.speechSynthesis.onvoiceschanged = () => {
+          speakNow();
+        };
+        setTimeout(speakNow, 100);
+      } else {
+        speakNow();
       }
 
-      utterance.onend = () => resolve();
-      utterance.onerror = (e) => {
-        console.warn("[playWordAudio] Utterance error:", e);
-        resolve();
-      };
-      
-      window.speechSynthesis.speak(utterance);
     } catch (err) {
       console.error("SpeechSynthesis failed:", err);
       resolve();
