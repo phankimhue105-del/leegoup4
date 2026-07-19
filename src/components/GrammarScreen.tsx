@@ -77,14 +77,18 @@ export default function GrammarScreen({ session, onUpdateSession, activeUnit, ac
   };
 
   // Scrambled word bubble click handler
-  const handleWordBubbleClick = (word: string, isPlaced: boolean) => {
+  const handleWordBubbleClick = (index: number, isPlaced: boolean) => {
     if (isAnswered) return;
     if (isPlaced) {
-      setPlacedWords(prev => prev.filter(w => w !== word));
+      const word = placedWords[index];
+      if (word === undefined) return;
+      setPlacedWords(prev => prev.filter((_, i) => i !== index));
       setScrambledWords(prev => [...prev, word]);
     } else {
+      const word = scrambledWords[index];
+      if (word === undefined) return;
       setPlacedWords(prev => [...prev, word]);
-      setScrambledWords(prev => prev.filter(w => w !== word));
+      setScrambledWords(prev => prev.filter((_, i) => i !== index));
     }
   };
 
@@ -562,7 +566,7 @@ export default function GrammarScreen({ session, onUpdateSession, activeUnit, ac
                       placedWords.map((word, idx) => (
                         <button
                           key={`placed-${word}-${idx}`}
-                          onClick={() => handleWordBubbleClick(word, true)}
+                          onClick={() => handleWordBubbleClick(idx, true)}
                           className="bg-brand-blue text-white px-4 py-2.5 rounded-2xl text-xs font-extrabold shadow-sm hover:bg-rose-500 transition cursor-pointer flex items-center space-x-1"
                         >
                           <span>{word}</span>
@@ -576,7 +580,7 @@ export default function GrammarScreen({ session, onUpdateSession, activeUnit, ac
                     {scrambledWords.map((word, idx) => (
                       <button
                         key={`scramble-${word}-${idx}`}
-                        onClick={() => handleWordBubbleClick(word, false)}
+                        onClick={() => handleWordBubbleClick(idx, false)}
                         className="bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-700 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition cursor-pointer"
                       >
                         {word}
