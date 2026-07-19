@@ -224,11 +224,10 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
-  const [simulationText, setSimulationText] = useState('');
   const [micError, setMicError] = useState<'blocked' | 'error' | null>(null);
   const [answersLog, setAnswersLog] = useState<{ question: string, answer: string }[]>([]);
 
-  // Real Gemini evaluation state
+  // Real Gemini evaluation state (Single Source of Truth)
   const [evalResultState, setEvalResultState] = useState<any>(null);
   const [evalErrorState, setEvalErrorState] = useState<boolean>(false);
 
@@ -273,7 +272,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     setEvalErrorState(false);
     setTranscript('');
     setTextInput('');
-    setSimulationText('');
     setAnswersLog([]);
     
     // Welcome message from AI
@@ -299,7 +297,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef<string>('');
   const latestFullTextRef = useRef<string>('');
-  const isStoppingRef = useRef<boolean>(false);
 
   const startRecording = () => {
     if (isProcessing) return;
@@ -308,7 +305,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     setTranscript('');
     finalTranscriptRef.current = '';
     latestFullTextRef.current = '';
-    isStoppingRef.current = false;
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
@@ -322,12 +318,15 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     try {
       const recognition = new SpeechRecognition();
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      recognition.continuous = !isMobile;
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPhone|iPad|iPod/.test(navigator.userAgent);
+      
+      // Continuous mode is disabled on Mobile & Safari to ensure reliable onend events
+      recognition.continuous = !isMobile && !isSafari;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onstart = () => {
-        console.log("Recognition started");
+        console.log("[AISpeakingCoach] Speech recognition started");
         setIsRecording(true);
         setIsProcessing(false);
         startTimeRef.current = Date.now();
@@ -361,7 +360,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       };
 
       recognition.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error);
+        console.error("[AISpeakingCoach] Speech recognition error:", event.error);
         setIsRecording(false);
         setIsProcessing(false);
         stopTimer();
@@ -374,15 +373,14 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       };
 
       recognition.onend = () => {
-        console.log("Recognition ended");
+        console.log("[AISpeakingCoach] Speech recognition ended");
         setIsRecording(false);
         stopTimer();
 
         const capturedText = (finalTranscriptRef.current || latestFullTextRef.current || transcript).trim();
-        console.log("Final transcript on recognition end:", capturedText);
+        console.log("[AISpeakingCoach] Captured transcript:", capturedText);
 
         if (capturedText) {
-          console.log("[AISpeakingCoach] Submitting captured voice transcript via unified submitAnswer pipeline...");
           submitAnswer(capturedText);
         } else {
           setIsProcessing(false);
@@ -392,7 +390,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       recognitionRef.current = recognition;
       recognition.start();
     } catch (err: any) {
-      console.error("Failed to start SpeechRecognition:", err);
+      console.error("[AISpeakingCoach] Failed to start SpeechRecognition:", err);
       setIsProcessing(false);
       setIsRecording(false);
       stopTimer();
@@ -408,7 +406,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
       try {
         recognitionRef.current.stop();
       } catch (e) {
-        console.warn("Recognition stop error:", e);
+        console.warn("[AISpeakingCoach] Recognition stop error:", e);
       }
     } else {
       const capturedText = (finalTranscriptRef.current || latestFullTextRef.current || transcript).trim();
@@ -422,7 +420,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
   // Single Unified Answer Submission Pipeline for BOTH Voice & Manual Text Input
   const submitAnswer = async (customText?: string) => {
-    const finalAnswer = (customText || transcript || simulationText || '').trim();
+    const finalAnswer = (customText || transcript || '').trim();
     
     if (!finalAnswer) {
       console.warn("[AISpeakingCoach] Empty answer submitted.");
@@ -465,8 +463,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
       if (response.ok) {
         const chatData = await response.json();
-        console.log("API response:", chatData);
-
         if (chatData.reply) {
           const teacherReplyMsg: ChatMessage = {
             id: `ai-reply-${currentQIndex}`,
@@ -478,10 +474,10 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         }
       }
     } catch (err) {
-      console.error("AI Teacher chat generation error:", err);
+      console.error("[AISpeakingCoach] AI Teacher chat API error:", err);
     }
 
-    // Advance to next question or run comprehensive evaluation
+    // Advance to next question or run ONE final AI evaluation after Q10
     setTimeout(() => {
       if (nextIdx < questions.length) {
         setCurrentQuestionIndex(nextIdx);
@@ -497,7 +493,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         speakText(questions[nextIdx].question);
         setTranscript('');
         setTextInput('');
-        setSimulationText('');
         setIsProcessing(false);
         startTimeRef.current = Date.now();
       } else {
@@ -518,13 +513,10 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
     };
     setChatLog(prev => [...prev, loadingMsg]);
 
-    console.log("Transcript:", JSON.stringify(finalLog, null, 2));
-
     const requestPayload = {
       history: finalLog,
       unitId: activeUnit.id
     };
-    console.log("Gemini Request:", JSON.stringify(requestPayload, null, 2));
 
     try {
       const response = await fetch("/api/evaluate-speaking", {
@@ -535,11 +527,8 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Gemini Raw Response:", JSON.stringify(data));
         
         if (data && data.useFallback !== true) {
-          console.log("Parsed JSON:", JSON.stringify(data, null, 2));
-
           const evalObj = {
             overallScore: Number(data.overallScore),
             pronunciationScore: Number(data.pronunciationScore ?? data.pronunciation),
@@ -551,14 +540,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
             commonMistakes: Array.isArray(data.commonMistakes) ? data.commonMistakes : (Array.isArray(data.corrections) ? data.corrections : []),
             suggestedPractice: data.suggestedPractice || ""
           };
-
-          console.log("Evaluation Object:", JSON.stringify(evalObj, null, 2));
-          console.log("Displayed Scores:", {
-            overallScore: evalObj.overallScore,
-            pronunciationScore: evalObj.pronunciationScore,
-            grammarScore: evalObj.grammarScore,
-            fluencyScore: evalObj.fluencyScore
-          });
 
           setEvalResultState(evalObj);
           setEvalErrorState(false);
@@ -609,7 +590,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         }
       }
     } catch (err) {
-      console.error("Comprehensive speaking evaluation error:", err);
+      console.error("[AISpeakingCoach] Comprehensive evaluation error:", err);
     }
 
     setChatLog(prev => prev.filter(m => m.id !== 'ai-loading-eval'));
