@@ -378,20 +378,14 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         setIsRecording(false);
         stopTimer();
 
-        if (isStoppingRef.current) {
-          isStoppingRef.current = false;
-          const capturedText = (finalTranscriptRef.current || latestFullTextRef.current || transcript).trim();
-          console.log("Final transcript:", capturedText);
+        const capturedText = (finalTranscriptRef.current || latestFullTextRef.current || transcript).trim();
+        console.log("Final transcript on recognition end:", capturedText);
 
-          if (!capturedText) {
-            console.warn("[AISpeakingCoach] Final transcript is empty. Staying on current question.");
-            setIsProcessing(false);
-            alert("I couldn't hear you clearly. Please try again or type your answer below.");
-            return;
-          }
-
-          console.log("Processing answer...");
-          processAnswer(capturedText);
+        if (capturedText) {
+          console.log("[AISpeakingCoach] Submitting captured voice transcript via unified submitAnswer pipeline...");
+          submitAnswer(capturedText);
+        } else {
+          setIsProcessing(false);
         }
       };
 
@@ -409,7 +403,6 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
   const stopRecordingAndAnalyze = () => {
     setIsRecording(false);
     stopTimer();
-    isStoppingRef.current = true;
 
     if (recognitionRef.current) {
       try {
@@ -418,17 +411,23 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
         console.warn("Recognition stop error:", e);
       }
     } else {
-      isStoppingRef.current = false;
-      processAnswer();
+      const capturedText = (finalTranscriptRef.current || latestFullTextRef.current || transcript).trim();
+      if (capturedText) {
+        submitAnswer(capturedText);
+      } else {
+        setIsProcessing(false);
+      }
     }
   };
 
-  const processAnswer = async (customText?: string) => {
+  // Single Unified Answer Submission Pipeline for BOTH Voice & Manual Text Input
+  const submitAnswer = async (customText?: string) => {
     const finalAnswer = (customText || transcript || simulationText || '').trim();
     
     if (!finalAnswer) {
-      console.warn("[AISpeakingCoach] Empty text answer submitted. Stopping pipeline.");
+      console.warn("[AISpeakingCoach] Empty answer submitted.");
       alert("Bé hãy gõ hoặc nói câu trả lời của mình nhé! (Please record or type your answer.)");
+      setIsProcessing(false);
       return;
     }
 
@@ -839,7 +838,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
                         if (e.key === 'Enter' && textInput.trim() && !isProcessing) {
                           const val = textInput;
                           setTextInput('');
-                          processAnswer(val);
+                          submitAnswer(val);
                         }
                       }}
                       placeholder="Hoặc gõ câu trả lời của con tại đây..."
@@ -851,7 +850,7 @@ export default function AISpeakingCoach({ session, onUpdateSession, activeUnit, 
                         if (textInput.trim() && !isProcessing) {
                           const val = textInput;
                           setTextInput('');
-                          processAnswer(val);
+                          submitAnswer(val);
                         }
                       }}
                       disabled={!textInput.trim() || isProcessing || isRecording}
