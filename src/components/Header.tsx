@@ -134,10 +134,11 @@ export default function Header({ session, onLogout, onNavigate, currentView }: H
 
                 <button
                   onClick={onLogout}
-                  className="p-1.5 text-slate-400 hover:text-brand-primary rounded-lg hover:bg-slate-50 transition"
+                  className="flex items-center space-x-1 bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer border border-rose-100/80"
                   title="Đăng xuất"
                 >
-                  <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Đăng xuất</span>
                 </button>
               </div>
             </>
