@@ -4,79 +4,94 @@
  */
 
 import React, { useState } from 'react';
-import { UserRole, UserSession } from '../types';
-import { defaultStudentSession, defaultAdminSession, defaultGuestSession, googleSheetsService, isGuestModeEnabled } from '../lib/storage';
-import { Sparkles, GraduationCap, ArrowRight, Phone, MessageSquare, AlertCircle, KeyRound, Globe, Play } from 'lucide-react';
+import { UserSession } from '../types';
+import { saveUserSession, getUsersDB } from '../lib/storage';
+import { Sparkles, GraduationCap, AlertCircle, Lock, User } from 'lucide-react';
 
 interface WelcomeScreenProps {
   onLoginSuccess: (session: UserSession) => void;
 }
 
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyraxAby--FP4P8PZ-IMWvpYA50MECguJMKA5fuMnugh3_A64E6xAq_WG4sBU_gnig6gw/exec';
+
 export default function WelcomeScreen({ onLoginSuccess }: WelcomeScreenProps) {
-  const [studentUsername, setStudentUsername] = useState('');
-  const [studentPassword, setStudentPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Custom credentials for manual Admin/Teacher sign-in
-  const [isAdminMode, setIsAdminMode] = useState(false);
-  const [adminUsername, setAdminUsername] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
 
-  // Handles standard student login
-  const handleStudentSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentUsername.trim()) {
-      setError('Hãy nhập tên đăng nhập của con!');
+    if (!username.trim() || !password.trim()) {
+      setError('Sai tên đăng nhập hoặc mật khẩu.');
       return;
     }
+
     setError(null);
     setLoading(true);
+
     try {
-      const session = await googleSheetsService.loginWithCredentials(studentUsername, studentPassword);
-      if (session.role === 'admin') {
-        setError('Tài khoản này là Admin, vui lòng đăng nhập bên tab Giáo viên!');
-        setLoading(false);
-        return;
+      const payload = {
+        username: username.trim(),
+        password: password.trim()
+      };
+
+      let response: Response;
+      try {
+        response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (networkErr) {
+        // Fallback for CORS preflight in some browsers when hitting Apps Script POST
+        response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
       }
-      onLoginSuccess(session);
-    } catch (err: any) {
-      setError(err.message || 'Tên đăng nhập hoặc mật khẩu không đúng!');
+
+      if (!response.ok) {
+        throw new Error('NETWORK_ERROR');
+      }
+
+      const data = await response.json();
+
+      if (data && data.success === true) {
+        const studentName = data.student || username.trim();
+        
+        // Retrieve existing session data or build a new session for this student
+        const existingUsers = getUsersDB();
+        const userInDb = existingUsers.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
+
+        const session: UserSession = {
+          username: username.trim(),
+          fullName: studentName,
+          role: 'student',
+          avatarUrl: userInDb?.avatarUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&auto=format&fit=crop&q=60',
+          points: userInDb?.points || 0,
+          streak: userInDb?.streak || 1,
+          completedLessons: userInDb?.completedLessons || [],
+          vocabularyProgress: userInDb?.vocabularyProgress || {},
+          grammarProgress: userInDb?.grammarProgress || {},
+          testResults: userInDb?.testResults || {},
+          speakingResults: userInDb?.speakingResults || {},
+          badges: userInDb?.badges || [],
+          lastActiveDate: new Date().toISOString().split('T')[0]
+        };
+
+        saveUserSession(session);
+        onLoginSuccess(session);
+      } else {
+        setError('Sai tên đăng nhập hoặc mật khẩu.');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Không thể kết nối đến máy chủ. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Handles admin login
-  const handleAdminSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!adminUsername.trim()) {
-      setError('Hãy nhập tài khoản quản trị!');
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      const session = await googleSheetsService.loginWithCredentials(adminUsername, adminPassword);
-      if (session.role !== 'admin') {
-        setError('Tài khoản này không có quyền quản trị/giáo viên!');
-        setLoading(false);
-        return;
-      }
-      onLoginSuccess(session);
-    } catch (err: any) {
-      setError(err.message || 'Tài khoản hoặc mật khẩu không đúng!');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGuestAccess = () => {
-    if (!isGuestModeEnabled()) {
-      setError('Chế độ trải nghiệm khách (Guest Mode) đang bị Giáo viên tạm khóa. Vui lòng liên hệ giáo viên LeeGo: 0988.526.585 để nhận tài khoản học nhé!');
-      return;
-    }
-    onLoginSuccess(defaultGuestSession);
   };
 
   return (
@@ -98,12 +113,11 @@ export default function WelcomeScreen({ onLoginSuccess }: WelcomeScreenProps) {
         </p>
       </div>
 
-      {/* Welcome Layout Card */}
-      <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+      {/* Login Layout Card */}
+      <div className="w-full bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-2 max-w-3xl">
         
         {/* Left Side: Brand Visual Card */}
         <div className="bg-gradient-to-br from-brand-primary to-brand-orange p-8 sm:p-10 text-white flex flex-col justify-between relative overflow-hidden">
-          {/* Background circles */}
           <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full translate-x-10 -translate-y-10"></div>
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full -translate-x-10 translate-y-10"></div>
           
@@ -126,10 +140,6 @@ export default function WelcomeScreen({ onLoginSuccess }: WelcomeScreenProps) {
                 <span className="bg-brand-yellow text-slate-900 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">2</span>
                 <span>Luyện nói AI Speaking Coach thông minh</span>
               </div>
-              <div className="flex items-center space-x-2 text-xs font-semibold bg-white/10 p-2 rounded-xl border border-white/10">
-                <span className="bg-brand-yellow text-slate-900 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">3</span>
-                <span>Đồng bộ tiến độ học Google Sheets</span>
-              </div>
             </div>
           </div>
 
@@ -139,151 +149,73 @@ export default function WelcomeScreen({ onLoginSuccess }: WelcomeScreenProps) {
           </div>
         </div>
 
-        {/* Right Side: Auth / Login Modes */}
+        {/* Right Side: Student Login Form */}
         <div className="p-8 sm:p-10 flex flex-col justify-center">
           
-          {/* Tabs for Login Type */}
-          <div className="flex border-b border-slate-100 mb-6">
-            <button
-              onClick={() => { setIsAdminMode(false); setError(null); }}
-              className={`flex-1 pb-3 text-sm font-bold border-b-2 transition ${
-                !isAdminMode
-                  ? 'border-brand-primary text-brand-primary'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Dành Cho Học Viên
-            </button>
-            <button
-              onClick={() => { setIsAdminMode(true); setError(null); }}
-              className={`flex-1 pb-3 text-sm font-bold border-b-2 transition ${
-                isAdminMode
-                  ? 'border-brand-purple text-brand-purple'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Giáo Viên / Quản Trị
-            </button>
-          </div>
+          <h2 className="text-xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-3 text-brand-primary">
+            Dành cho học viên
+          </h2>
 
           {error && (
-            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3.5 mb-5 text-rose-600 text-xs font-medium flex items-start space-x-2 animate-shake">
+            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3.5 mb-5 text-rose-600 text-xs font-bold flex items-start space-x-2 animate-shake">
               <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          {/* Student Form */}
-          {!isAdminMode ? (
-            <form onSubmit={handleStudentSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Tên đăng nhập học viên:
-                </label>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                TÊN ĐĂNG NHẬP HỌC VIÊN
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <User className="h-4 w-4" />
+                </div>
                 <input
                   type="text"
-                  value={studentUsername}
-                  onChange={(e) => setStudentUsername(e.target.value)}
-                  placeholder="Ví dụ: leego2026, hs002..."
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-brand-primary focus:bg-white rounded-2xl px-4 py-3 text-sm outline-none transition font-semibold"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Nhập tên đăng nhập học viên"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-brand-primary focus:bg-white rounded-2xl pl-10 pr-4 py-3.5 text-sm outline-none transition font-semibold text-slate-800"
+                  required
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Mật khẩu:
-                </label>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                MẬT KHẨU
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Lock className="h-4 w-4" />
+                </div>
                 <input
                   type="password"
-                  value={studentPassword}
-                  onChange={(e) => setStudentPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu học viên"
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-brand-primary focus:bg-white rounded-2xl px-4 py-3 text-sm outline-none transition font-semibold"
-                />
-                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                  💡 Sử dụng tài khoản mặc định: đăng nhập <strong>leego2026</strong> mật khẩu <strong>leego</strong> để trải nghiệm nhanh.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-brand-primary hover:bg-brand-primary-dark text-white font-bold py-3.5 px-6 rounded-2xl shadow-md transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? (
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                ) : (
-                  <>
-                    <span>Đăng nhập Vào Học</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-              
-              <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-slate-100"></div>
-                <span className="flex-shrink mx-3 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Hoặc</span>
-                <div className="flex-grow border-t border-slate-100"></div>
-              </div>
-
-              {/* Guest / Demo Access */}
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                className="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold py-3.5 px-6 rounded-2xl transition flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                <Play className="h-4 w-4 text-brand-secondary fill-brand-secondary" />
-                <span>Trải Nghiệm Khách (Guest)</span>
-              </button>
-            </form>
-          ) : (
-            /* Admin Form */
-            <form onSubmit={handleAdminSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Tài khoản Giáo viên / Quản trị:
-                </label>
-                <input
-                  type="text"
-                  value={adminUsername}
-                  onChange={(e) => setAdminUsername(e.target.value)}
-                  placeholder="Tài khoản Admin"
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-brand-purple focus:bg-white rounded-2xl px-4 py-3 text-sm outline-none transition font-semibold"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-brand-primary focus:bg-white rounded-2xl pl-10 pr-4 py-3.5 text-sm outline-none transition font-semibold text-slate-800"
+                  required
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                  Mật khẩu:
-                </label>
-                <input
-                  type="password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-brand-purple focus:bg-white rounded-2xl px-4 py-3 text-sm outline-none transition font-semibold"
-                />
-                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                  💡 Đăng nhập nhanh Quản trị: tài khoản <strong>admin</strong> mật khẩu <strong>leego</strong>.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-brand-purple hover:bg-purple-700 text-white font-bold py-3.5 px-6 rounded-2xl shadow-md transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
-              >
-                {loading ? (
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
-                ) : (
-                  <>
-                    <KeyRound className="h-4 w-4" />
-                    <span>Đăng nhập Giáo Viên</span>
-                  </>
-                )}
-              </button>
-            </form>
-          )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-brand-primary hover:bg-brand-primary-dark text-white font-extrabold py-4 px-6 rounded-2xl shadow-md transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer text-sm mt-2"
+            >
+              {loading ? (
+                <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></span>
+              ) : (
+                <>
+                  <span>Đăng nhập Vào học →</span>
+                </>
+              )}
+            </button>
+          </form>
 
         </div>
       </div>
